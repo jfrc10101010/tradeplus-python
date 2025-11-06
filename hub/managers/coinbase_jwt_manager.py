@@ -193,6 +193,85 @@ class CoinbaseJWTManager:
         
         return token
     
+    def generate_jwt_for_websocket(self):
+        """
+        Genera JWT válido para WebSocket (sin path específico)
+        Coinbase WebSocket usa JWT genérico sin URI parametrizado
+        Formato correcto para wss://advanced-trade-ws.coinbase.com
+        
+        Returns:
+            str: JWT válido para WebSocket
+        """
+        try:
+            if not self.private_key:
+                raise RuntimeError("❌ Clave privada no cargada")
+            
+            # Cargar clave privada EC
+            key = serialization.load_pem_private_key(
+                self.private_key.encode(),
+                password=None
+            )
+            
+            # Timestamps
+            now = int(time.time())
+            expires_in = 120  # 2 minutos de validez
+            
+            # Extraer UUID del API key si viene en formato de path
+            # Formato: organizations/{org_id}/apiKeys/{key_id}
+            # Usamos: organizations/{org_id}/apiKeys/{key_id} para kid y sub
+            
+            # Payload JWT - formato exacto para Coinbase WebSocket
+            # Coinbase espera: sub (API Key), iss (cdp), exp, iat
+            payload = {
+                'sub': self.api_key,
+                'iss': 'cdp',
+                'nbf': now,
+                'exp': now + expires_in,
+                'iat': now,
+            }
+            
+            # Headers - kid DEBE ser igual a sub para WebSocket
+            headers = {
+                'kid': self.api_key,
+                'alg': 'ES256'
+            }
+            
+            # Generar JWT
+            token = pyjwt.encode(
+                payload,
+                key,
+                algorithm='ES256',
+                headers=headers
+            )
+            
+            # Guardar metadata
+            self.current_jwt = token
+            self.jwt_generated_at = datetime.now()
+            self.jwt_expires_at = datetime.now() + timedelta(seconds=expires_in)
+            
+            self.logger.info(f"✅ JWT WebSocket generado: {token[:20]}...")
+            self.logger.debug(f"   API Key: {self.api_key}")
+            self.logger.debug(f"   Válido por {expires_in} segundos")
+            
+            # DEBUG: Decodificar para ver payload
+            import base64
+            parts = token.split('.')
+            if len(parts) == 3:
+                # Agregar padding si es necesario
+                payload_part = parts[1]
+                payload_part += '=' * (4 - len(payload_part) % 4)
+                try:
+                    decoded_payload = json.loads(base64.urlsafe_b64decode(payload_part))
+                    self.logger.debug(f"   Payload: {decoded_payload}")
+                except:
+                    pass
+            
+            return token
+        
+        except Exception as e:
+            self.logger.error(f"❌ Error generando JWT para WebSocket: {e}")
+            raise
+    
     def refresh_jwt(self):
         """
         Renueva JWT si está próximo a expirar (> 60 segundos de antigüedad)

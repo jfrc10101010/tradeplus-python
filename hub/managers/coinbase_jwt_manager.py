@@ -97,12 +97,21 @@ class CoinbaseJWTManager:
             f"Verificar {self.api_key_file} o {self.env_file}"
         )
     
-    def generate_jwt(self):
+    def generate_jwt_for_endpoint(self, method='GET', path='/api/v3/brokerage/accounts'):
         """
-        Genera JWT válido para Coinbase API v3
+        Genera JWT válido para un endpoint específico de Coinbase API v3
+        
+        Args:
+            method: HTTP method (GET, POST, PUT, DELETE) - defecto 'GET'
+            path: API endpoint path - defecto '/api/v3/brokerage/accounts'
+                  Ejemplos:
+                  - '/api/v3/brokerage/accounts'
+                  - '/api/v3/brokerage/orders/historical/batch'
+                  - '/api/v3/brokerage/orders/historical/fills'
+                  - '/api/v3/brokerage/portfolios'
         
         Returns:
-            str: JWT válido (token)
+            str: JWT válido (token) para el endpoint especificado
         """
         try:
             if not self.private_key:
@@ -118,11 +127,9 @@ class CoinbaseJWTManager:
             now = int(time.time())
             expires_in = 120  # 2 minutos de validez
             
-            # URI requerida por Coinbase (GET /api/v3/brokerage/accounts)
-            request_method = 'GET'
+            # URI PARAMETRIZADA para Coinbase (debe coincidir exactamente con la request)
             request_host = 'api.coinbase.com'
-            request_path = '/api/v3/brokerage/accounts'
-            uri = f"{request_method} {request_host}{request_path}"
+            uri = f"{method} {request_host}{path}"
             
             # Payload JWT
             payload = {
@@ -131,7 +138,7 @@ class CoinbaseJWTManager:
                 'nbf': now,
                 'exp': now + expires_in,
                 'iat': now,
-                'uri': uri
+                'uri': uri  # ← URI parametrizada (critical para Coinbase)
             }
             
             # Headers con kid y nonce requeridos
@@ -150,20 +157,41 @@ class CoinbaseJWTManager:
                 headers=headers
             )
             
-            # Guardar metadata
-            self.current_jwt = token
-            self.jwt_generated_at = datetime.now()
-            self.jwt_expires_at = datetime.now() + timedelta(seconds=expires_in)
+            # Guardar metadata (por defecto accounts para compatibilidad)
+            if method == 'GET' and path == '/api/v3/brokerage/accounts':
+                self.current_jwt = token
+                self.jwt_generated_at = datetime.now()
+                self.jwt_expires_at = datetime.now() + timedelta(seconds=expires_in)
             
-            self.logger.info(f"✅ JWT generado: {token[:20]}...")
+            self.logger.debug(f"✅ JWT generado para {method} {path}")
+            self.logger.debug(f"   Token: {token[:20]}...")
             self.logger.debug(f"   Válido por {expires_in} segundos")
-            self.logger.debug(f"   Expira en: {self.jwt_expires_at}")
             
             return token
         
         except Exception as e:
-            self.logger.error(f"❌ Error generando JWT: {e}")
+            self.logger.error(f"❌ Error generando JWT para {method} {path}: {e}")
             raise
+    
+    def generate_jwt(self):
+        """
+        Genera JWT válido para cuentas (compatibilidad legacy)
+        Equivalente a: generate_jwt_for_endpoint('GET', '/api/v3/brokerage/accounts')
+        
+        Returns:
+            str: JWT válido (token)
+        """
+        token = self.generate_jwt_for_endpoint(method='GET', path='/api/v3/brokerage/accounts')
+        
+        # Actualizar metadata para compatibilidad
+        self.current_jwt = token
+        self.jwt_generated_at = datetime.now()
+        self.jwt_expires_at = datetime.now() + timedelta(seconds=120)
+        
+        self.logger.info(f"✅ JWT generado para cuentas: {token[:20]}...")
+        self.logger.debug(f"   Expira en: {self.jwt_expires_at}")
+        
+        return token
     
     def refresh_jwt(self):
         """

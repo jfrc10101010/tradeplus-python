@@ -1,0 +1,236 @@
+{
+  "accounts": {
+    "status": "success",
+    "total_accounts": 10,
+    "total_usd": 0.0,
+    "accounts": [
+      {
+        "currency": "DOGE",
+        "balance": "0",
+        "uuid": "73363518-36dd-5f6e-a19a-c29013e30d80"
+      },
+      {
+        "currency": "XLM",
+        "balance": "0",
+        "uuid": "f6c65e75-f0b0-53e7-b9cb-7cb899051756"
+      },
+      {
+        "currency": "AERO",
+        "balance": "0",
+        "uuid": "9f4e31db-c27c-5391-b34c-fd7196f32081"
+      },
+      {
+        "currency": "PEPE",
+        "balance": "0",
+        "uuid": "61bb6584-5ada-5fee-a0de-27b12815dca6"
+      },
+      {
+        "currency": "XRP",
+        "balance": "0",
+        "uuid": "e81d6822-14f8-53ea-8903-d7d06b6d9c60"
+      },
+      {
+        "currency": "USDC",
+        "balance": "0",
+        "uuid": "dbc367c6-0822-58f4-9aa4-b6b2402f325f"
+      },
+      {
+        "currency": "ETH",
+        "balance": "0",
+        "uuid": "f12c4c39-0af5-532d-b27f-db235f26ea19"
+      },
+      {
+        "currency": "BTC",
+        "balance": "0",
+        "uuid": "fb0c51b3-f6d6-54eb-b06f-ece24079cfbb"
+      },
+      {
+        "currency": "SHIB",
+        "balance": "0",
+        "uuid": "915c470b-5612-5693-a20c-0976e57187da"
+      },
+      {
+        "currency": "USD",
+        "balance": "0",
+        "uuid": "661d60f9-b2a3-5e1f-a83e-f804fb51b7e2"
+      }
+    ]
+  },
+  "orders": {
+    "status": "success",
+    "total_orders": 134,
+    "order_types": {
+      "LIMIT": 110,
+      "MARKET": 22,
+      "TAKE_PROFIT_STOP_LOSS": 2
+    },
+    "orders_sample": [
+      {
+        "product_id": "BTC-USD",
+        "order_type": "LIMIT",
+        "price": "121136.09",
+        "created_time": "2025-10-09T15:50:15.895070Z",
+        "id": null
+      },
+      {
+        "product_id": "XRP-USD",
+        "order_type": "LIMIT",
+        "price": "2.8047",
+        "created_time": "2025-10-09T15:39:12.697961Z",
+        "id": null
+      },
+      {
+        "product_id": "XLM-USD",
+        "order_type": "LIMIT",
+        "price": "0.38372",
+        "created_time": "2025-10-08T15:35:41.959211Z",
+        "id": null
+      },
+      {
+        "product_id": "XRP-USD",
+        "order_type": "LIMIT",
+        "price": "2.8669",
+        "created_time": "2025-10-08T15:35:14.934553Z",
+        "id": null
+      },
+      {
+        "product_id": "XRP-USD",
+        "order_type": "LIMIT",
+        "price": "2.8705",
+        "created_time": "2025-10-08T01:44:53.235040Z",
+        "id": null
+      },
+      {
+        "product_id": "PEPE-USD",
+        "order_type": "LIMIT",
+        "price": "0.00000954",
+        "created_time": "2025-10-07T22:52:49.160481Z",
+        "id": null
+      },
+      {
+        "product_id": "XLM-USD",
+        "order_type": "MARKET",
+        "price": "0.386884",
+        "created_time": "2025-10-07T22:48:54.334758Z",
+        "id": null
+      },
+      {
+        "product_id": "XRP-USD",
+        "order_type": "LIMIT",
+        "price": "2.8697",
+        "created_time": "2025-10-07T22:45:57.840340Z",
+        "id": null
+      },
+      {
+        "product_id": "XRP-USD",
+        "order_type": "LIMIT",
+        "price": "0",
+        "created_time": "2025-10-07T22:45:06.191829Z",
+        "id": null
+      },
+      {
+        "product_id": "XRP-USD",
+        "order_type": "LIMIT",
+        "price": "2.868",
+        "created_time": "2025-10-07T22:44:23.688751Z",
+        "id": null
+      }
+    ]
+  },
+  "fills": {
+    "status": "success",
+    "total_fills": 100,
+    "products": {
+      "BTC-USD": 1,
+      "XRP-USD": 87,
+      "XLM-USD": 6,
+      "PEPE-USD": 3,
+      "SHIB-USD": 3
+    },
+    "total_value": 505.98315764831943,
+    "fills_sample": [
+      {
+        "product_id": "BTC-USD",
+        "side": "BUY",
+        "price": "121136.09",
+        "size": "0.00006604",
+        "created_at": null
+      },
+      {
+        "product_id": "XRP-USD",
+        "side": "BUY",
+        "price": "2.8047",
+        "size": "1",
+        "created_at": null
+      },
+      {
+        "product_id": "XLM-USD",
+        "side": "BUY",
+        "price": "0.38372",
+        "size": "10",
+        "created_at": null
+      },
+      {
+        "product_id": "XRP-USD",
+        "side": "BUY",
+        "price": "2.8669",
+        "size": "1",
+        "created_at": null
+      },
+      {
+        "product_id": "XRP-USD",
+        "side": "BUY",
+        "price": "2.8705",
+        "size": "1",
+        "created_at": null
+      },
+      {
+        "product_id": "PEPE-USD",
+        "side": "SELL",
+        "price": "0.00000954",
+        "size": "3000",
+        "created_at": null
+      },
+      {
+        "product_id": "XLM-USD",
+        "side": "SELL",
+        "price": "0.386884",
+        "size": "5",
+        "created_at": null
+      },
+      {
+        "product_id": "XRP-USD",
+        "side": "SELL",
+        "price": "2.8697",
+        "size": "0.291295",
+        "created_at": null
+      },
+      {
+        "product_id": "XRP-USD",
+        "side": "SELL",
+        "price": "2.8697",
+        "size": "3.708705",
+        "created_at": null
+      },
+      {
+        "product_id": "XRP-USD",
+        "side": "BUY",
+        "price": "2.868",
+        "size": "1",
+        "created_at": null
+      }
+    ]
+  },
+  "portfolios": {
+    "status": "success",
+    "total_portfolios": 1,
+    "portfolios": [
+      {
+        "name": "Default",
+        "type": "DEFAULT",
+        "uuid": "a6d96007-2dae-5cc8-a908-816fd3b14e0a",
+        "balance": {}
+      }
+    ]
+  }
+}

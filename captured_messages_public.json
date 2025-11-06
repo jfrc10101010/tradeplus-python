@@ -1,0 +1,119 @@
+{
+  "endpoint": "wss://ws-feed.exchange.coinbase.com",
+  "timestamp_inicio": "2025-11-05T19:59:36.023217",
+  "total_mensajes": 5,
+  "mensajes": [
+    {
+      "timestamp": "2025-11-05T19:59:35.458339",
+      "data": {
+        "type": "subscriptions",
+        "channels": [
+          {
+            "name": "ticker",
+            "product_ids": [
+              "BTC-USD",
+              "ETH-USD"
+            ],
+            "account_ids": null
+          },
+          {
+            "name": "heartbeat",
+            "product_ids": [
+              "BTC-USD",
+              "ETH-USD"
+            ],
+            "account_ids": null
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2025-11-05T19:59:35.497176",
+      "data": {
+        "type": "ticker",
+        "sequence": 89123066008,
+        "product_id": "ETH-USD",
+        "price": "3406.61",
+        "open_24h": "3239.59",
+        "volume_24h": "196645.42148833",
+        "low_24h": "3165.58",
+        "high_24h": "3481.76",
+        "volume_30d": "4139416.78500480",
+        "best_bid": "3406.61",
+        "best_bid_size": "1.81322455",
+        "best_ask": "3406.62",
+        "best_ask_size": "2.21740883",
+        "side": "sell",
+        "time": "2025-11-06T00:59:36.437824Z",
+        "trade_id": 724857821,
+        "last_size": "0.00000003"
+      }
+    },
+    {
+      "timestamp": "2025-11-05T19:59:35.498469",
+      "data": {
+        "type": "ticker",
+        "sequence": 115009501472,
+        "product_id": "BTC-USD",
+        "price": "103654.89",
+        "open_24h": "100542.65",
+        "volume_24h": "10512.88382600",
+        "low_24h": "98950",
+        "high_24h": "104550",
+        "volume_30d": "241555.46967437",
+        "best_bid": "103654.88",
+        "best_bid_size": "0.39729863",
+        "best_ask": "103654.89",
+        "best_ask_size": "0.18317563",
+        "side": "buy",
+        "time": "2025-11-06T00:59:34.257165Z",
+        "trade_id": 897318805,
+        "last_size": "0.00018748"
+      }
+    },
+    {
+      "timestamp": "2025-11-05T19:59:35.612063",
+      "data": {
+        "type": "ticker",
+        "sequence": 89123066020,
+        "product_id": "ETH-USD",
+        "price": "3406.61",
+        "open_24h": "3239.59",
+        "volume_24h": "196645.42148836",
+        "low_24h": "3165.58",
+        "high_24h": "3481.76",
+        "volume_30d": "4139416.78500483",
+        "best_bid": "3406.61",
+        "best_bid_size": "1.81322452",
+        "best_ask": "3406.62",
+        "best_ask_size": "2.21740883",
+        "side": "sell",
+        "time": "2025-11-06T00:59:36.637606Z",
+        "trade_id": 724857822,
+        "last_size": "0.00000003"
+      }
+    },
+    {
+      "timestamp": "2025-11-05T19:59:35.929502",
+      "data": {
+        "type": "ticker",
+        "sequence": 89123066039,
+        "product_id": "ETH-USD",
+        "price": "3406.61",
+        "open_24h": "3239.59",
+        "volume_24h": "196645.42148839",
+        "low_24h": "3165.58",
+        "high_24h": "3481.76",
+        "volume_30d": "4139416.78500486",
+        "best_bid": "3406.61",
+        "best_bid_size": "1.81322449",
+        "best_ask": "3406.62",
+        "best_ask_size": "2.21740883",
+        "side": "sell",
+        "time": "2025-11-06T00:59:36.953597Z",
+        "trade_id": 724857823,
+        "last_size": "0.00000003"
+      }
+    }
+  ]
+}

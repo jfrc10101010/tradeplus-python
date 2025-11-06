@@ -1,0 +1,24 @@
+{
+  "fase": "1.5-VAL",
+  "timestamp": "2025-11-05T20:25:56.695212",
+  "url": "wss://advanced-trade-ws.coinbase.com",
+  "jwt_sample": "eyJhbGciOiJFUzI1NiIs...",
+  "messages_total": 1,
+  "messages_summary": {
+    "heartbeats": 0,
+    "tickers": 0,
+    "subscribe_done": 0,
+    "errors": 1
+  },
+  "prices": {
+    "BTC-USD": null,
+    "ETH-USD": null
+  },
+  "first_5_messages": [
+    {
+      "type": "error",
+      "timestamp": "2025-11-05T20:25:41.759822",
+      "data_sample": "{'type': 'error', 'message': 'authentication failure'}"
+    }
+  ]
+}

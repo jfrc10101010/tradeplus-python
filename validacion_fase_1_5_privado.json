@@ -1,0 +1,20 @@
+{
+  "fase": "1.5-VAL-PRIVADO",
+  "timestamp": "2025-11-05T20:33:15.472399",
+  "endpoint": "wss://advanced-trade-ws.coinbase.com",
+  "channel": "user",
+  "jwt_sample": "eyJhbGciOiJFUzI1NiIs...",
+  "connection": {
+    "connected": true,
+    "subscription_confirmed": false,
+    "error_received": "Unknown"
+  },
+  "messages_summary": {
+    "total": 1,
+    "heartbeats": 0,
+    "subscribe_done": 0,
+    "private_events": 0
+  },
+  "private_events": [],
+  "validation_status": "SIN_EVENTOS_PRIVADOS"
+}

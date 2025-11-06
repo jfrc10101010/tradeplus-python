@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRADEPLUS - Live Trading Data</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/styles/ag-grid.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/styles/ag-theme-quartz.css">
+    <script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
+</head>
+<body class="bg-gray-900 text-white font-sans">
+    <div class="container mx-auto p-6">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-4xl font-bold mb-2">🚀 TRADEPLUS</h1>
+            <p class="text-gray-400">Multi-broker real-time trading data</p>
+            <div class="mt-4 p-3 bg-green-900/30 border border-green-600 rounded text-green-200" id="status">
+                🔴 Conectando...
+            </div>
+        </div>
+        
+        <!-- Grid de datos -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <!-- AG Grid tabla -->
+            <div class="lg:col-span-2">
+                <div class="bg-gray-800 rounded-lg p-4 shadow-lg">
+                    <h2 class="text-xl font-bold mb-4">📊 Candles en tiempo real</h2>
+                    <div id="grid" class="ag-theme-quartz-dark" style="height: 400px;"></div>
+                </div>
+            </div>
+            
+            <!-- Stats -->
+            <div class="bg-gray-800 rounded-lg p-4 shadow-lg">
+                <h2 class="text-xl font-bold mb-4">📈 Estadísticas</h2>
+                <div class="space-y-3">
+                    <div>
+                        <p class="text-gray-400">Total candles</p>
+                        <p class="text-2xl font-bold" id="candle-count">0</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-400">Últimas velas</p>
+                        <div id="latest-symbols" class="text-sm space-y-1"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chart -->
+        <div class="bg-gray-800 rounded-lg p-4 shadow-lg mb-8">
+            <h2 class="text-xl font-bold mb-4">📉 Gráfico últimas 20 velas</h2>
+            <canvas id="priceChart"></canvas>
+        </div>
+    </div>
+
+    <script src="js/client.js"></script>
+</body>
+</html>

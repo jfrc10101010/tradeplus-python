@@ -1,0 +1,59 @@
+{
+  "timestamp": "",
+  "http_status": 200,
+  "accounts_found": 1,
+  "first_account": {
+    "type": "CASH",
+    "accountNumber": "74164065",
+    "roundTrips": 0,
+    "isDayTrader": false,
+    "isClosingOnlyRestricted": false,
+    "pfcbFlag": false,
+    "initialBalances": {
+      "accruedInterest": 0.0,
+      "cashAvailableForTrading": 4611.03,
+      "cashAvailableForWithdrawal": 4611.03,
+      "cashBalance": 4611.03,
+      "bondValue": 0.0,
+      "cashReceipts": 0.0,
+      "liquidationValue": 5840.31,
+      "longOptionMarketValue": 0.0,
+      "longStockValue": 1229.28,
+      "moneyMarketFund": 0.0,
+      "mutualFundValue": 4611.03,
+      "shortOptionMarketValue": 0.0,
+      "shortStockValue": 0.0,
+      "isInCall": false,
+      "unsettledCash": 4692.53,
+      "cashDebitCallValue": 0.0,
+      "pendingDeposits": 0.0,
+      "accountValue": 5840.31
+    },
+    "currentBalances": {
+      "accruedInterest": 0.0,
+      "cashBalance": 4692.83,
+      "cashReceipts": 44.0,
+      "longOptionMarketValue": 0.0,
+      "liquidationValue": 5960.15,
+      "longMarketValue": 1267.32,
+      "moneyMarketFund": 0.0,
+      "savings": 0.0,
+      "shortMarketValue": 0.0,
+      "pendingDeposits": 44.0,
+      "mutualFundValue": 0.0,
+      "bondValue": 0.0,
+      "shortOptionMarketValue": 0.0,
+      "cashAvailableForTrading": 4692.83,
+      "cashAvailableForWithdrawal": -43.7,
+      "cashCall": 0.0,
+      "longNonMarginableMarketValue": 4648.83,
+      "totalCash": 4692.83,
+      "cashDebitCallValue": 0.0,
+      "unsettledCash": 4692.53
+    },
+    "projectedBalances": {
+      "cashAvailableForTrading": 4692.83,
+      "cashAvailableForWithdrawal": -43.7
+    }
+  }
+}

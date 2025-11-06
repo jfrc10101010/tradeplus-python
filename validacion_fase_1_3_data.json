@@ -1,0 +1,76 @@
+{
+  "timestamp": "2025-11-05T20:11:56.903607",
+  "endpoint": "https://api.coinbase.com/api/v3/brokerage/accounts",
+  "http_status": 200,
+  "jwt_used": "eyJhbGciOiJFUzI1NiIsImtpZCI6Im...",
+  "jwt_valid_until": "2025-11-05T20:13:52.786469",
+  "accounts_found": 10,
+  "first_accounts": [
+    {
+      "uuid": "73363518-36dd-5f6e-a19a-c29013e30d80",
+      "name": "Billetera de DOGE",
+      "currency": "DOGE",
+      "available_balance": {
+        "value": "0",
+        "currency": "DOGE"
+      },
+      "default": true,
+      "active": true,
+      "created_at": "2025-10-03T00:54:16.519Z",
+      "updated_at": "2025-10-03T21:13:24.508226Z",
+      "deleted_at": null,
+      "type": "ACCOUNT_TYPE_CRYPTO",
+      "ready": true,
+      "hold": {
+        "value": "0",
+        "currency": "DOGE"
+      },
+      "retail_portfolio_id": "a6d96007-2dae-5cc8-a908-816fd3b14e0a",
+      "platform": "ACCOUNT_PLATFORM_CONSUMER"
+    },
+    {
+      "uuid": "f6c65e75-f0b0-53e7-b9cb-7cb899051756",
+      "name": "Billetera de XLM",
+      "currency": "XLM",
+      "available_balance": {
+        "value": "10",
+        "currency": "XLM"
+      },
+      "default": true,
+      "active": true,
+      "created_at": "2025-09-16T01:37:30.995Z",
+      "updated_at": "2025-10-08T15:46:47.187684Z",
+      "deleted_at": null,
+      "type": "ACCOUNT_TYPE_CRYPTO",
+      "ready": true,
+      "hold": {
+        "value": "0",
+        "currency": "XLM"
+      },
+      "retail_portfolio_id": "a6d96007-2dae-5cc8-a908-816fd3b14e0a",
+      "platform": "ACCOUNT_PLATFORM_CONSUMER"
+    },
+    {
+      "uuid": "9f4e31db-c27c-5391-b34c-fd7196f32081",
+      "name": "Billetera de AERO",
+      "currency": "AERO",
+      "available_balance": {
+        "value": "0",
+        "currency": "AERO"
+      },
+      "default": true,
+      "active": true,
+      "created_at": "2025-09-06T19:13:16.922Z",
+      "updated_at": "2025-09-06T19:13:16.938898Z",
+      "deleted_at": null,
+      "type": "ACCOUNT_TYPE_CRYPTO",
+      "ready": true,
+      "hold": {
+        "value": "0",
+        "currency": "AERO"
+      },
+      "retail_portfolio_id": "a6d96007-2dae-5cc8-a908-816fd3b14e0a",
+      "platform": "ACCOUNT_PLATFORM_CONSUMER"
+    }
+  ]
+}

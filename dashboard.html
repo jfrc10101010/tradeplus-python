@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { margin-bottom: 20px; color: #60a5fa; }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        button:hover { background: #2563eb; }
+        button:disabled { background: #64748b; cursor: not-allowed; }
+        
+        input {
+            padding: 10px;
+            background: #1e293b;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+        
+        .results {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        .card h2 { color: #60a5fa; margin-bottom: 10px; font-size: 16px; }
+        
+        pre {
+            background: #0f172a;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .error { color: #ef4444; }
+        .success { color: #10b981; }
+        .loading { color: #f59e0b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Trading Dashboard</h1>
+        
+        <div class="controls">
+            <input type="text" id="tokenInput" placeholder="Token se genera automáticamente..." style="flex: 1; max-width: 500px;" readonly>
+            <button onclick="generateToken()" id="generateBtn">🔄 Regenerar Token</button>
+            <button onclick="getSchwabAccounts()" id="accountsBtn" disabled>💰 Cuentas Schwab</button>
+            <button onclick="getQuotes()" id="quotesBtn" disabled>📊 Cotizaciones</button>
+            <button onclick="getCoinbaseRealData()" id="coinbaseBtn" disabled>🪙 Coinbase Real</button>
+            <button onclick="clearResults()">🗑️ Limpiar</button>
+        </div>
+        
+        <div class="results">
+            <div class="card">
+                <h2>📊 Token Info</h2>
+                <pre id="tokenResult">Pega un token y presiona "Probar Token"</pre>
+            </div>
+            
+            <div class="card">
+                <h2>💳 Schwab Data</h2>
+                <pre id="schwabResult">-</pre>
+            </div>
+            
+            <div class="card">
+                <h2>📈 Coinbase/Cotizaciones</h2>
+                <pre id="coinbaseResult">Click "Coinbase Demo" o "Cotizaciones"</pre>
+            </div>
+            
+            <div class="card">
+                <h2>🔍 Raw Response</h2>
+                <pre id="rawResult">Las respuestas JSON aparecerán aquí...</pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Credenciales de Schwab (del proyecto v4)
+        const SCHWAB_CREDENTIALS = {
+            client_id: 'E5JeBvUNWNkRSt4iH2a9iGOWFnY2HP9s4Y792ftffemWFLLe',
+            client_secret: '3mKEG3P4bgYDGErOEVzPaGswI7ckqN6wBfIljAfZ0wQzjSTMaiyG8AQbnZQGFEPN',
+            refresh_token: 'ONgl_BvSoJcl95vmoK1a3y7j1J7llLEzz-3CxEXN8n--3MRgiTWV5ey1vJsWQ6HSil5aPgp6o3Grga5Mj2gSjWVK-7UfWfzUeJHVBnpccrHedRSmh9JanRtRwCktUBTnDYYziHqiiIU@'
+        };
+        
+        let currentToken = null;
+        
+        function log(elementId, message, type = 'info') {
+            const el = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'loading' ? '⏳' : 'ℹ️';
+            el.innerHTML = `<span class="${type}">${prefix} ${timestamp}\n${message}</span>`;
+            console.log(`[${type.toUpperCase()}]`, message);
+        }
+        
+        function enableButtons() {
+            document.getElementById('accountsBtn').disabled = false;
+            document.getElementById('quotesBtn').disabled = false;
+            document.getElementById('coinbaseBtn').disabled = false;
+        }
+        
+        function disableButtons() {
+            document.getElementById('accountsBtn').disabled = true;
+            document.getElementById('quotesBtn').disabled = true;
+            document.getElementById('coinbaseBtn').disabled = true;
+        }
+        
+        async function generateToken() {
+            log('tokenResult', 'Generando access_token automáticamente...', 'loading');
+            document.getElementById('generateBtn').disabled = true;
+            disableButtons();
+            
+            try {
+                // Preparar autenticación básica
+                const auth = btoa(`${SCHWAB_CREDENTIALS.client_id}:${SCHWAB_CREDENTIALS.client_secret}`);
+                
+                const response = await fetch('https://api.schwabapi.com/v1/oauth/token', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Basic ${auth}`,
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: new URLSearchParams({
+                        'grant_type': 'refresh_token',
+                        'refresh_token': SCHWAB_CREDENTIALS.refresh_token
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    currentToken = data.access_token;
+                    
+                    // Mostrar token en input
+                    document.getElementById('tokenInput').value = currentToken;
+                    
+                    // Actualizar refresh token para próxima vez
+                    if (data.refresh_token) {
+                        SCHWAB_CREDENTIALS.refresh_token = data.refresh_token;
+                    }
+                    
+                    const expiresIn = Math.floor(data.expires_in / 60);
+                    log('tokenResult', `✅ TOKEN GENERADO EXITOSAMENTE!\n\nExpira en: ${expiresIn} minutos\nToken: ${currentToken.substring(0, 50)}...\n\n🎉 ¡Listo! Ahora puedes usar los botones.`, 'success');
+                    
+                    enableButtons();
+                } else {
+                    const errorData = await response.json();
+                    log('tokenResult', `❌ Error al generar token:\n${JSON.stringify(errorData, null, 2)}`, 'error');
+                }
+                
+            } catch (error) {
+                log('tokenResult', `❌ Error de conexión: ${error.message}`, 'error');
+            } finally {
+                document.getElementById('generateBtn').disabled = false;
+            }
+        }
+        
+        async function getSchwabAccounts() {
+            if (!currentToken) {
+                log('schwabResult', 'Primero genera un token', 'error');
+                return;
+            }
+            
+            log('schwabResult', 'Obteniendo cuentas Schwab...', 'loading');
+            
+            try {
+                const response = await fetch('https://api.schwabapi.com/trader/v1/accounts', {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    let summary = `📊 CUENTAS SCHWAB (${data.length})\n`;
+                    summary += '═'.repeat(40) + '\n\n';
+                    
+                    data.forEach((acc, i) => {
+                        const account = acc.securitiesAccount;
+                        const accountNum = account.accountNumber;
+                        const cash = account.currentBalances?.totalCash || 0;
+                        const equity = account.currentBalances?.equity || 0;
+                        const buying = account.currentBalances?.buyingPower || 0;
+                        
+                        summary += `${i+1}. Cuenta: ${accountNum}\n`;
+                        summary += `   💰 Efectivo: $${cash.toLocaleString()}\n`;
+                        summary += `   📈 Patrimonio: $${equity.toLocaleString()}\n`;
+                        summary += `   🛒 Poder de compra: $${buying.toLocaleString()}\n\n`;
+                    });
+                    
+                    log('schwabResult', summary, 'success');
+                    log('rawResult', JSON.stringify(data, null, 2));
+                } else {
+                    const errorData = await response.json();
+                    log('schwabResult', `❌ Error: ${response.status}\n${JSON.stringify(errorData, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                log('schwabResult', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function getQuotes() {
+            if (!currentToken) {
+                log('coinbaseResult', 'Primero genera un token', 'error');
+                return;
+            }
+            
+            log('coinbaseResult', 'Obteniendo cotizaciones...', 'loading');
+            
+            try {
+                // Obtener cotizaciones de acciones populares
+                const symbols = 'AAPL,MSFT,GOOGL,TSLA,NVDA';
+                const response = await fetch(`https://api.schwabapi.com/marketdata/v1/quotes?symbols=${symbols}`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                
+                const data = await response.json();
+                log('rawResult', JSON.stringify(data, null, 2), 'info');
+                
+                if (response.ok) {
+                    let summary = '📊 COTIZACIONES EN TIEMPO REAL\n';
+                    summary += '═'.repeat(40) + '\n\n';
+                    
+                    Object.entries(data).forEach(([symbol, quote]) => {
+                        const price = quote.quote?.lastPrice || quote.quote?.mark || 0;
+                        const change = quote.quote?.netChange || 0;
+                        const changePercent = quote.quote?.netPercentChangeInDouble || 0;
+                        const arrow = change >= 0 ? '📈' : '📉';
+                        const color = change >= 0 ? '+' : '';
+                        
+                        summary += `${arrow} ${symbol}\n`;
+                        summary += `   Precio: $${price.toFixed(2)}\n`;
+                        summary += `   Cambio: ${color}${change.toFixed(2)} (${color}${changePercent.toFixed(2)}%)\n\n`;
+                    });
+                    
+                    log('coinbaseResult', summary, 'success');
+                } else {
+                    const errorData = await response.json();
+                    log('coinbaseResult', `❌ Error: ${response.status}\n${JSON.stringify(errorData, null, 2)}`, 'error');
+                    log('rawResponse', JSON.stringify(errorData, null, 2), 'error');
+                }
+            } catch (error) {
+                log('coinbaseResult', `❌ Error: ${error.message}`, 'error');
+                log('rawResponse', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function getCoinbaseRealData() {
+            log('coinbaseResult', '🪙 CONECTANDO A COINBASE...', 'loading');
+            
+            try {
+                // Verificar que el backend esté funcionando
+                const statusResponse = await fetch('http://localhost:5000/api/health');
+                if (!statusResponse.ok) {
+                    throw new Error('Backend no disponible en localhost:5000');
+                }
+                
+                log('coinbaseResult', '✅ Backend conectado\n🔑 Obteniendo cuentas...', 'loading');
+                
+                // Obtener cuentas directamente del endpoint corregido
+                const response = await fetch('http://localhost:5000/api/coinbase-accounts');
+                const result = await response.json();
+                
+                log('rawResult', JSON.stringify(result, null, 2));
+                
+                if (result.status === 'success') {
+                    let summary = '🪙 COINBASE CUENTAS REALES\n';
+                    summary += '═'.repeat(40) + '\n\n';
+                    
+                    if (result.accounts && result.accounts.length > 0) {
+                        let totalValue = 0;
+                        
+                        result.accounts.forEach((acc, i) => {
+                            const currency = acc.currency || 'USD';
+                            const balance = acc.available_balance?.value || '0';
+                            const hold = acc.hold?.value || '0';
+                            const name = acc.name || `${currency} Wallet`;
+                            
+                            summary += `${i+1}. ${name}\n`;
+                            summary += `   💰 Disponible: ${balance} ${currency}\n`;
+                            summary += `   🔒 En espera: ${hold} ${currency}\n`;
+                            summary += `   🆔 ${acc.uuid.substring(0, 8)}...\n\n`;
+                            
+                            if (currency === 'USD') {
+                                totalValue += parseFloat(balance) || 0;
+                            }
+                        });
+                        
+                        summary += `📊 Total estimado: $${totalValue.toFixed(2)} USD`;
+                    } else {
+                        summary += '❌ No se encontraron cuentas\n';
+                        summary += '⚠️ Verifica credenciales de Coinbase';
+                    }
+                    
+                    log('coinbaseResult', summary, 'success');
+                } else {
+                    // Error manejado correctamente por el backend
+                    let errorMsg = `❌ COINBASE ERROR\n\n`;
+                    errorMsg += `${result.error}\n\n`;
+                    
+                    if (result.details) {
+                        errorMsg += `Detalles: ${result.details}\n\n`;
+                    }
+                    
+                    // Mensajes específicos para errores comunes
+                    if (result.error && result.error.includes('401')) {
+                        errorMsg += '🔧 SOLUCIÓN - Error 401 Unauthorized:\n';
+                        errorMsg += '• Las credenciales Coinbase necesitan ser actualizadas\n';
+                        errorMsg += '• Verifica API Key y Private Key\n';
+                        errorMsg += '• Verifica permisos de la API Key\n';
+                        errorMsg += '• La key puede haber expirado';
+                    } else if (result.error && result.error.includes('403')) {
+                        errorMsg += '🔧 SOLUCIÓN - Error 403 Forbidden:\n';
+                        errorMsg += '• API Key no tiene permisos suficientes\n';
+                        errorMsg += '• Verifica scopes en Coinbase Developer Portal';
+                    } else {
+                        errorMsg += '🔧 POSIBLES SOLUCIONES:\n';
+                        errorMsg += '• Verificar conexión a internet\n';
+                        errorMsg += '• Verificar credenciales Coinbase\n';
+                        errorMsg += '• Contactar soporte Coinbase';
+                    }
+                    
+                    log('coinbaseResult', errorMsg, 'error');
+                }
+                
+            } catch (error) {
+                let errorMsg = `❌ ERROR DE CONEXIÓN\n\n`;
+                errorMsg += `${error.message}\n\n`;
+                errorMsg += '🚀 VERIFICAR:\n';
+                errorMsg += '1. Backend corriendo en localhost:5000\n';
+                errorMsg += '2. PM2 status - tradeplus-api online\n';
+                errorMsg += '3. Sin bloqueos de firewall';
+                
+                log('coinbaseResult', errorMsg, 'error');
+                log('rawResult', `Error: ${error.message}`);
+            }
+        }
+        
+        function clearResults() {
+            ['tokenResult', 'schwabResult', 'coinbaseResult', 'rawResult'].forEach(id => {
+                const defaultTexts = {
+                    'tokenResult': '🚀 Bienvenido a TradePlus V5.0\n\nClick "Generar Token" para empezar',
+                    'schwabResult': 'Datos de Schwab aparecerán aquí...',
+                    'coinbaseResult': 'Click "Coinbase Demo" o "Cotizaciones"',
+                    'rawResult': 'Las respuestas JSON aparecerán aquí...'
+                };
+                document.getElementById(id).innerHTML = defaultTexts[id] || '-';
+            });
+        }
+        
+        // Auto-generar token al cargar la página
+        window.onload = function() {
+            log('tokenResult', '🚀 Iniciando TradePlus V5.0...\nGenerando token automáticamente...', 'loading');
+            // Auto-generar token inmediatamente
+            setTimeout(() => {
+                generateToken();
+            }, 500);
+        };
+    </script>
+</body>
+</html>

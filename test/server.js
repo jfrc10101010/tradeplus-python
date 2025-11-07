@@ -349,6 +349,16 @@ app.get('/api/debug', (req, res) => {
     });
 });
 
+// GET /dashboard - Dashboard profesional
+app.get('/dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+// GET /journal - Dashboard profesional del Journal
+app.get('/journal', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
 // GET / - Redirigir a índice
 app.get('/', (req, res) => {
     res.redirect('/index.html');
@@ -380,9 +390,9 @@ app.listen(PORT, () => {
 ╔════════════════════════════════════════════════════════════╗
 ║     TRADEPLUS V5.0 - JOURNAL TEST SERVER                  ║
 ║     🚀 Puerto: ${PORT}                                          ║
-║     📍 http://localhost:${PORT}                               ║
+║     📍 Home: http://localhost:${PORT}                         ║
+║     📊 Journal: http://localhost:${PORT}/journal              ║
 ║     🔄 Datos en VIVO desde Schwab + Coinbase              ║
-║     📊 Dashboard: http://localhost:${PORT}/dashboard         ║
 ╚════════════════════════════════════════════════════════════╝
     `);
 

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRADEPLUS V5.0 - Journal Dashboard</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'profit': '#10b981',
+                        'loss': '#ef4444',
+                        'neutral': '#6b7280',
+                        'dark-bg': '#0f172a',
+                        'dark-card': '#1e293b',
+                        'dark-border': '#334155'
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- AG Grid -->
+    <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/dist/ag-grid-community.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/dist/styles/ag-grid.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/dist/styles/ag-theme-quartz-dark.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    
+    <style>
+        * {
+            color-scheme: dark;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1a1f3a 100%);
+            min-height: 100vh;
+        }
+        
+        .profit-text {
+            color: #10b981;
+        }
+        
+        .loss-text {
+            color: #ef4444;
+        }
+        
+        .neutral-text {
+            color: #6b7280;
+        }
+        
+        .card-glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(51, 65, 85, 0.3);
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(30, 41, 59, 0.5));
+            border: 1px solid rgba(51, 65, 85, 0.5);
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            border-color: rgba(51, 65, 85, 0.8);
+            background: linear-gradient(135deg, rgba(30, 41, 59, 1), rgba(30, 41, 59, 0.7));
+        }
+        
+        .ag-theme-quartz-dark {
+            --ag-background-color: #1e293b;
+            --ag-foreground-color: #e2e8f0;
+            --ag-border-color: #334155;
+            --ag-row-hover-color: #334155;
+            --ag-row-selected-background-color: rgba(16, 185, 129, 0.1);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        
+        .spinner {
+            border: 3px solid rgba(16, 185, 129, 0.1);
+            border-top: 3px solid #10b981;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .tab-active {
+            border-bottom: 2px solid #10b981;
+            color: #10b981;
+        }
+        
+        .tab-inactive {
+            border-bottom: 2px solid transparent;
+            color: #6b7280;
+        }
+        
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+        
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: #1e293b;
+            color: #e2e8f0;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            border: 1px solid #334155;
+            font-size: 12px;
+        }
+        
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-dark-bg text-gray-100">
+    <div class="min-h-screen p-4 md:p-8">
+        <div class="max-w-7xl mx-auto">
+            
+            <!-- HEADER -->
+            <div class="mb-8">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h1 class="text-4xl font-bold mb-2">📊 JOURNAL DASHBOARD</h1>
+                        <p class="text-gray-400">Análisis de trading en tiempo real desde Schwab + Coinbase</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm text-gray-500 mb-2" id="last-update">Actualizando...</div>
+                        <button onclick="refreshDashboard()" class="px-4 py-2 bg-profit text-white rounded-lg hover:bg-green-600 transition">
+                            🔄 Actualizar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPIs PRINCIPALES -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <!-- Total Operaciones -->
+                <div class="stat-card rounded-lg p-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-gray-400 text-sm mb-2">📈 Total Operaciones</p>
+                            <p class="text-3xl font-bold" id="total-ops">-</p>
+                        </div>
+                        <div class="text-2xl">📊</div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-3">Últimos 7 días</p>
+                </div>
+
+                <!-- P&L Total USD -->
+                <div class="stat-card rounded-lg p-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-gray-400 text-sm mb-2">💰 Volumen Total (USD)</p>
+                            <p class="text-3xl font-bold" id="pl-usd">$-</p>
+                        </div>
+                        <div class="text-2xl">💵</div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-3">Acumulado</p>
+                </div>
+
+                <!-- Win Rate -->
+                <div class="stat-card rounded-lg p-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-gray-400 text-sm mb-2">🎯 Ratio Compra/Venta</p>
+                            <p class="text-3xl font-bold profit-text" id="win-rate">-</p>
+                        </div>
+                        <div class="text-2xl">🏆</div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-3">BUY vs SELL</p>
+                </div>
+
+                <!-- Profit Factor -->
+                <div class="stat-card rounded-lg p-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-gray-400 text-sm mb-2">
+                                <span class="tooltip">
+                                    📈 Comisiones Totales
+                                    <span class="tooltiptext">Total de fees pagados</span>
+                                </span>
+                            </p>
+                            <p class="text-3xl font-bold loss-text" id="profit-factor">-</p>
+                        </div>
+                        <div class="text-2xl">💸</div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-3">Fees acumulados</p>
+                </div>
+            </div>
+
+            <!-- TABS NAVEGACIÓN -->
+            <div class="mb-6 border-b border-dark-border flex gap-8">
+                <button onclick="switchTab('overview')" class="tab-active pb-4 font-semibold transition">
+                    📊 Overview
+                </button>
+                <button onclick="switchTab('trades')" class="tab-inactive pb-4 font-semibold transition">
+                    📋 Trades
+                </button>
+                <button onclick="switchTab('symbols')" class="tab-inactive pb-4 font-semibold transition">
+                    🎯 Por Símbolo
+                </button>
+                <button onclick="switchTab('analytics')" class="tab-inactive pb-4 font-semibold transition">
+                    📈 Analytics
+                </button>
+            </div>
+
+            <!-- TAB: OVERVIEW -->
+            <div id="tab-overview" class="tab-content">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <!-- Compras vs Ventas -->
+                    <div class="card-glass rounded-lg p-6">
+                        <h3 class="text-lg font-bold mb-4">🔄 Compras vs Ventas</h3>
+                        <div class="chart-container">
+                            <canvas id="chart-buysell"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Broker Distribution -->
+                    <div class="card-glass rounded-lg p-6">
+                        <h3 class="text-lg font-bold mb-4">🏢 Por Broker</h3>
+                        <div class="chart-container">
+                            <canvas id="chart-brokers"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Top Símbolos -->
+                    <div class="card-glass rounded-lg p-6">
+                        <h3 class="text-lg font-bold mb-4">🥇 Top 5 Símbolos</h3>
+                        <div id="top-symbols-list" class="space-y-3">
+                            <!-- Generado dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detalles por Día -->
+                <div class="card-glass rounded-lg p-6">
+                    <h3 class="text-lg font-bold mb-4">📅 Actividad Diaria</h3>
+                    <div class="chart-container" style="height: 250px;">
+                        <canvas id="chart-daily"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: TRADES -->
+            <div id="tab-trades" class="tab-content hidden">
+                <div class="card-glass rounded-lg p-6">
+                    <h3 class="text-lg font-bold mb-4">📋 Todas las Operaciones</h3>
+                    <div class="ag-theme-quartz-dark" id="grid-trades" style="height: 600px;"></div>
+                </div>
+            </div>
+
+            <!-- TAB: SÍMBOLOS -->
+            <div id="tab-symbols" class="tab-content hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <!-- Top Símbolos por Volumen -->
+                    <div class="card-glass rounded-lg p-6">
+                        <h3 class="text-lg font-bold mb-4">🥇 Top Símbolos (Volumen)</h3>
+                        <div id="top-symbols-gain"></div>
+                    </div>
+
+                    <!-- Distribución por Símbolo -->
+                    <div class="card-glass rounded-lg p-6">
+                        <h3 class="text-lg font-bold mb-4">📊 Distribución</h3>
+                        <div class="chart-container">
+                            <canvas id="chart-symbols-dist"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detalles por Símbolo -->
+                <div class="card-glass rounded-lg p-6">
+                    <h3 class="text-lg font-bold mb-4">🎯 Análisis Detallado por Símbolo</h3>
+                    <div class="ag-theme-quartz-dark" id="grid-symbols" style="height: 500px;"></div>
+                </div>
+            </div>
+
+            <!-- TAB: ANALYTICS -->
+            <div id="tab-analytics" class="tab-content hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <!-- Horas más Activas -->
+                    <div class="card-glass rounded-lg p-6">
+                        <h3 class="text-lg font-bold mb-4">🕐 Horas Más Activas</h3>
+                        <div class="chart-container" style="height: 300px;">
+                            <canvas id="chart-hours"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Volumen por Hora -->
+                    <div class="card-glass rounded-lg p-6">
+                        <h3 class="text-lg font-bold mb-4">💰 Volumen por Hora del Día</h3>
+                        <div class="chart-container" style="height: 300px;">
+                            <canvas id="chart-volume-hours"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Estadísticas Generales -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="card-glass rounded-lg p-4">
+                        <p class="text-gray-400 text-sm mb-2">🏆 Total Compras</p>
+                        <p class="text-2xl font-bold profit-text" id="stats-buys">-</p>
+                        <p class="text-xs text-gray-500 mt-1" id="stats-buys-avg">Volumen: -</p>
+                    </div>
+                    <div class="card-glass rounded-lg p-4">
+                        <p class="text-gray-400 text-sm mb-2">📉 Total Ventas</p>
+                        <p class="text-2xl font-bold loss-text" id="stats-sells">-</p>
+                        <p class="text-xs text-gray-500 mt-1" id="stats-sells-avg">Volumen: -</p>
+                    </div>
+                    <div class="card-glass rounded-lg p-4">
+                        <p class="text-gray-400 text-sm mb-2">📊 Promedio por Trade</p>
+                        <p class="text-2xl font-bold" id="stats-avg-trade">$-</p>
+                        <p class="text-xs text-gray-500 mt-1">Valor promedio</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MODAL: Detalle de Símbolo -->
+    <div id="symbol-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-dark-card rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto border border-dark-border">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold" id="modal-symbol">-</h2>
+                <button onclick="closeSymbolModal()" class="text-gray-400 hover:text-white text-2xl">✕</button>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                    <p class="text-gray-400 text-sm">Operaciones</p>
+                    <p class="text-2xl font-bold" id="modal-ops">-</p>
+                </div>
+                <div>
+                    <p class="text-gray-400 text-sm">Volumen Total</p>
+                    <p class="text-2xl font-bold profit-text" id="modal-volume">-</p>
+                </div>
+                <div>
+                    <p class="text-gray-400 text-sm">Compras</p>
+                    <p class="text-2xl font-bold profit-text" id="modal-buys">-</p>
+                </div>
+                <div>
+                    <p class="text-gray-400 text-sm">Ventas</p>
+                    <p class="text-2xl font-bold loss-text" id="modal-sells">-</p>
+                </div>
+            </div>
+
+            <h3 class="text-lg font-bold mb-3">Trades del Símbolo</h3>
+            <div class="ag-theme-quartz-dark" id="grid-symbol-detail" style="height: 400px;"></div>
+        </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>

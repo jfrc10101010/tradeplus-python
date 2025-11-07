@@ -1,0 +1,23 @@
+{
+  "name": "tradeplus-journal-test",
+  "version": "1.0.0",
+  "description": "TRADEPLUS V5.0 - Journal Test Server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "debug": "node debug.js",
+    "pm2:start": "pm2 start ../ecosystem-journal.config.js",
+    "pm2:stop": "pm2 stop journal-test",
+    "pm2:restart": "pm2 restart journal-test",
+    "pm2:logs": "pm2 logs journal-test",
+    "pm2:flush": "pm2 flush",
+    "pm2:delete": "pm2 delete journal-test",
+    "test": "node debug.js"
+  },
+  "keywords": ["trading", "journal", "test"],
+  "author": "TRADEPLUS",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

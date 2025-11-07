@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>TRADEPLUS Journal Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .buttons {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        #result {
+            background: #1e293b;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .error {
+            color: #ef4444;
+        }
+        .success {
+            color: #10b981;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+        }
+        th {
+            background: #1e293b;
+        }
+        tr:hover {
+            background: #1e293b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TRADEPLUS Journal Test</h1>
+
+        <div class="buttons">
+            <button onclick="testSchwab()">Test Schwab Journal</button>
+            <button onclick="testCoinbase()">Test Coinbase Journal</button>
+        </div>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+    const API_URL = "http://localhost:8080/api/journal";
+
+    async function testSchwab() {
+        await loadJournal("schwab");
+    }
+
+    async function testCoinbase() {
+        await loadJournal("coinbase");
+    }
+
+    async function loadJournal(broker) {
+        const result = document.getElementById("result");
+        result.innerHTML = "Cargando...";
+
+        try {
+            const response = await fetch(`${API_URL}?broker=${broker}&days=30`);
+            const data = await response.json();
+
+            if (data.error) {
+                result.innerHTML = `<span class="error">Error: ${data.error}</span>`;
+                return;
+            }
+
+            let html = `<span class="success">Broker: ${data.broker}</span><br>`;
+            html += `Total trades: ${data.count}<br><br>`;
+
+            if (data.trades.length === 0) {
+                html += "No hay trades";
+                result.innerHTML = html;
+                return;
+            }
+
+            html += "<table>";
+            html += "<tr><th>Fecha</th><th>Símbolo</th><th>Lado</th><th>Cantidad</th><th>Precio</th><th>Comisión</th><th>Total</th></tr>";
+
+            data.trades.forEach(t => {
+                html += "<tr>";
+                html += `<td>${new Date(t.datetime).toLocaleString()}</td>`;
+                html += `<td>${t.symbol}</td>`;
+                html += `<td>${t.side}</td>`;
+                html += `<td>${t.quantity.toFixed(4)}</td>`;
+                html += `<td>$${t.price.toFixed(2)}</td>`;
+                html += `<td>$${t.fee.toFixed(2)}</td>`;
+                html += `<td>$${t.total.toFixed(2)}</td>`;
+                html += "</tr>";
+            });
+
+            html += "</table>";
+            result.innerHTML = html;
+
+        } catch (error) {
+            result.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+        }
+    }
+    </script>
+</body>
+</html>

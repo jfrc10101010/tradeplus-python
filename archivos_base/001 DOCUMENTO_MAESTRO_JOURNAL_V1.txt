@@ -1,0 +1,517 @@
+
+╔════════════════════════════════════════════════════════════════════╗
+║                                                                    ║
+║          TRADEPLUS V5.0 - DOCUMENTO MAESTRO PARA REINICIO          ║
+║                  Journal Module Implementation                     ║
+║                    Fecha: 7 Noviembre 2025                         ║
+║                                                                    ║
+╚════════════════════════════════════════════════════════════════════╝
+
+
+═══════════════════════════════════════════════════════════════════
+🎯 MODELO DE TRABAJO DEFINITIVO
+═══════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────┐
+│  PERPLEXITY (Claude Sonnet 4.5)           VS CODE (Claude 4.5)  │
+│  ================================          =====================  │
+│                                                                  │
+│  ROL: Arquitecto + Revisor                ROL: Ejecutor         │
+│  ───────────────────────────                ──────────────       │
+│                                                                  │
+│  ✅ Diseña arquitectura                   ✅ Ejecuta comandos   │
+│  ✅ Genera código completo                ✅ Copia archivos     │
+│  ✅ Revisa implementación                 ✅ Reporta resultados │
+│  ✅ Toma decisiones técnicas              ✅ Sigue instrucciones│
+│  ✅ Dirige el proyecto                    ⚠️ NO toma decisiones │
+│  ✅ Optimiza soluciones                   ⚠️ NO modifica sin    │
+│                                              permiso             │
+│                                                                  │
+│  COMUNICACIÓN:                            COMUNICACIÓN:         │
+│  - jfrc10101010 consulta aquí            - Recibe órdenes de   │
+│  - Claude Sonnet responde                   Perplexity          │
+│  - Se generan archivos                    - Ejecuta paso a paso│
+│  - Se envían a VS Code                    - Reporta éxito/fallo│
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+FLUJO DE TRABAJO:
+═════════════════
+
+1. jfrc10101010 → Perplexity: "Necesito implementar X"
+2. Perplexity → jfrc10101010: Genera código + plan
+3. jfrc10101010 → VS Code: "Ejecuta estos pasos"
+4. VS Code → jfrc10101010: "Resultado: OK / Error"
+5. jfrc10101010 → Perplexity: "Resultado fue X"
+6. Perplexity → jfrc10101010: Siguiente paso o corrección
+
+
+═══════════════════════════════════════════════════════════════════
+✅ ESTADO ACTUAL - LO QUE YA FUNCIONA (NO TOCAR)
+═══════════════════════════════════════════════════════════════════
+
+1. AUTENTICACIÓN Y TOKENS
+   ─────────────────────────
+
+   ✅ SCHWAB (thinkorswim)
+      Ubicación: hub/managers/schwab_token_manager.py
+
+      Funcionalidad:
+      - OAuth 2.0 implementado
+      - Token se renueva AUTOMÁTICAMENTE cada 30 minutos
+      - No requiere intervención manual
+      - account_hash extraído y almacenado
+
+      Uso:
+      ```python
+      from managers.schwab_token_manager import SchwabTokenManager
+      manager = SchwabTokenManager()
+      token = manager._ensure_valid_token()  # Siempre válido
+      account = manager.get_current_token()["account_hash"]
+      ```
+
+   ✅ COINBASE (Advanced Trade)
+      Ubicación: hub/managers/coinbase_jwt_manager.py
+
+      Funcionalidad:
+      - JWT Cloud API implementado
+      - Token se genera AUTOMÁTICAMENTE (válido 120 segundos)
+      - Usa API Key + Secret almacenados en .env
+      - No requiere renovación manual
+
+      Uso:
+      ```python
+      from managers.coinbase_jwt_manager import CoinbaseJWTManager
+      manager = CoinbaseJWTManager()
+      jwt = manager.generate_jwt()  # Siempre fresco
+      ```
+
+2. CONEXIONES API REST VERIFICADAS
+   ──────────────────────────────────
+
+   ✅ SCHWAB REST API
+      Base URL: https://api.schwabapi.com
+      Endpoints probados:
+      - GET /trader/v1/accounts/{hash} → OK
+      - GET /trader/v1/userPreference → OK
+      - GET /trader/v1/accounts/{hash}/transactions → PENDIENTE (para Journal)
+
+      Headers requeridos:
+      ```python
+      headers = {
+          "Authorization": f"Bearer {token}"
+      }
+      ```
+
+   ✅ COINBASE REST API
+      Base URL: https://api.coinbase.com
+      Endpoints probados:
+      - GET /api/v3/brokerage/accounts → OK
+      - GET /api/v3/brokerage/orders/historical/fills → PENDIENTE (para Journal)
+
+      Headers requeridos:
+      ```python
+      headers = {
+          "Authorization": f"Bearer {jwt}",
+          "Content-Type": "application/json"
+      }
+      ```
+
+3. HUB FASTAPI
+   ────────────
+
+   ✅ Servidor creado: hub/main.py
+      - Puerto: 8080
+      - CORS habilitado
+      - Endpoint /health funcionando
+
+   ✅ Puede correr en background:
+      ```powershell
+      Start-Process pythonw -ArgumentList "main.py" -WindowStyle Hidden
+      ```
+
+
+═══════════════════════════════════════════════════════════════════
+🎯 OBJETIVO ACTUAL - JOURNAL MODULE
+═══════════════════════════════════════════════════════════════════
+
+ALCANCE:
+────────
+Implementar módulo de Journal que muestre historial de trades de ambos
+brokers en un dashboard unificado.
+
+COMPONENTES:
+────────────
+
+1. BACKEND (Python)
+
+   hub/journal/
+   ├── journal_manager.py ← Orquestador principal
+   ├── schwab_adapter.py  ← Normaliza datos de Schwab
+   └── coinbase_adapter.py ← Normaliza datos de Coinbase
+
+2. API (FastAPI)
+
+   Endpoint: GET /api/journal
+   Query params:
+   - broker: "schwab" | "coinbase"
+   - days: int (default: 7)
+
+   Respuesta:
+   ```json
+   {
+     "broker": "schwab",
+     "trades": [
+       {
+         "id": "123",
+         "datetime": "2025-11-07T10:30:00Z",
+         "symbol": "AAPL",
+         "side": "BUY",
+         "quantity": 10.0,
+         "price": 178.50,
+         "fee": 0.50,
+         "total": 1785.00,
+         "broker": "schwab"
+       },
+       ...
+     ],
+     "stats": {
+       "total_trades": 15,
+       "total_volume": 12500.00,
+       "total_fees": 45.50,
+       "buys": 8,
+       "sells": 7
+     }
+   }
+   ```
+
+3. FRONTEND (HTML + Tailwind + AG Grid)
+
+   frontend/journal.html
+   - Pestañas: [T001 Journal (Schwab)] [C001 Journal (Coinbase)]
+   - Tabla con trades
+   - Stats cards (total trades, volume, fees)
+   - Diseño oscuro
+
+
+DATOS COMUNES ENTRE BROKERS:
+─────────────────────────────
+
+Los siguientes campos EXISTEN en ambas APIs:
+
+┌─────────────┬───────────────────────────┬──────────────────────┐
+│   Campo     │      Schwab               │      Coinbase        │
+├─────────────┼───────────────────────────┼──────────────────────┤
+│ ID          │ transactionId             │ trade_id             │
+│ Fecha/Hora  │ transactionDate           │ trade_time           │
+│ Símbolo     │ instrument.symbol         │ product_id           │
+│ Lado        │ instruction (BUY/SELL)    │ side (BUY/SELL)      │
+│ Cantidad    │ quantity                  │ size                 │
+│ Precio      │ price                     │ price                │
+│ Comisión    │ fees.commission           │ commission           │
+│ Total       │ netAmount                 │ size × price         │
+└─────────────┴───────────────────────────┴──────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════
+📐 ARQUITECTURA DETALLADA
+═══════════════════════════════════════════════════════════════════
+
+FLUJO DE DATOS:
+───────────────
+
+                         ┌─────────────────┐
+                         │                 │
+    Usuario hace clic ──→│  journal.html   │
+    "Test Schwab"        │  (Frontend)     │
+                         │                 │
+                         └────────┬────────┘
+                                  │
+                         fetch("/api/journal?broker=schwab")
+                                  │
+                         ┌────────▼────────┐
+                         │                 │
+                         │   FastAPI Hub   │
+                         │   (main.py)     │
+                         │                 │
+                         └────────┬────────┘
+                                  │
+                         Llama a JournalManager
+                                  │
+                    ┌─────────────┴─────────────┐
+                    │                           │
+            ┌───────▼────────┐         ┌───────▼────────┐
+            │                │         │                │
+            │ SchwabAdapter  │         │CoinbaseAdapter │
+            │                │         │                │
+            └───────┬────────┘         └───────┬────────┘
+                    │                           │
+         GET /transactions           GET /fills
+                    │                           │
+            ┌───────▼────────┐         ┌───────▼────────┐
+            │                │         │                │
+            │  Schwab API    │         │ Coinbase API   │
+            │  (REST)        │         │  (REST)        │
+            │                │         │                │
+            └────────────────┘         └────────────────┘
+
+
+RESPONSABILIDADES:
+──────────────────
+
+1. journal_manager.py
+   - Decide qué adapter usar (schwab/coinbase)
+   - Llama al adapter correspondiente
+   - Calcula estadísticas (total trades, fees, etc)
+   - Devuelve JSON unificado
+
+2. schwab_adapter.py
+   - Obtiene token válido de SchwabTokenManager
+   - Hace GET /transactions con parámetros correctos
+   - Normaliza respuesta a formato común
+   - Maneja errores específicos de Schwab
+
+3. coinbase_adapter.py
+   - Obtiene JWT de CoinbaseJWTManager
+   - Hace GET /fills con parámetros correctos
+   - Normaliza respuesta a formato común
+   - Maneja errores específicos de Coinbase
+
+
+═══════════════════════════════════════════════════════════════════
+📋 PLAN DE IMPLEMENTACIÓN PASO A PASO
+═══════════════════════════════════════════════════════════════════
+
+FASE 1: BACKEND - Adapters (30 min)
+────────────────────────────────────
+
+Perplexity genera:
+  1. hub/journal/schwab_adapter.py
+  2. hub/journal/coinbase_adapter.py
+
+VS Code ejecuta:
+  1. Copia archivos a ubicación correcta
+  2. Prueba imports: python -c "from journal.schwab_adapter import ..."
+  3. Reporta OK/Error
+
+FASE 2: BACKEND - Manager (20 min)
+───────────────────────────────────
+
+Perplexity genera:
+  1. hub/journal/journal_manager.py
+
+VS Code ejecuta:
+  1. Copia archivo
+  2. Prueba: python -c "from journal.journal_manager import JournalManager; j = JournalManager(); print(j.get_journal('schwab'))"
+  3. Reporta resultado (lista de trades o error)
+
+FASE 3: API - Endpoint (10 min)
+────────────────────────────────
+
+Perplexity genera:
+  1. Actualización de hub/main.py (agregar endpoint /api/journal)
+
+VS Code ejecuta:
+  1. Reemplaza main.py
+  2. Reinicia servidor (pythonw)
+  3. Prueba: curl http://localhost:8080/api/journal?broker=schwab
+  4. Reporta JSON o error
+
+FASE 4: FRONTEND - Dashboard (30 min)
+──────────────────────────────────────
+
+Perplexity genera:
+  1. frontend/journal.html (completo con Tailwind + AG Grid)
+
+VS Code ejecuta:
+  1. Copia archivo
+  2. Abre en navegador: file:///c:/Users/.../frontend/journal.html
+  3. Hace clic en "Test Schwab Journal"
+  4. Reporta: tabla con trades o error
+
+FASE 5: VALIDACIÓN (20 min)
+────────────────────────────
+
+Perplexity revisa:
+  1. Screenshot del journal funcionando
+  2. Verifica datos reales de ambos brokers
+  3. Da visto bueno o ajustes
+
+VS Code ejecuta:
+  1. Toma screenshots
+  2. Reporta estadísticas (X trades, $Y fees, etc)
+
+
+═══════════════════════════════════════════════════════════════════
+⚠️ REGLAS CRÍTICAS PARA VS CODE (Claude 4.5)
+═══════════════════════════════════════════════════════════════════
+
+PROHIBIDO:
+──────────
+❌ Modificar archivos sin instrucción explícita de Perplexity
+❌ Asumir problemas y "arreglarlos" sin consultar
+❌ Cambiar arquitectura o imports
+❌ Crear archivos nuevos no mencionados en el plan
+❌ Tomar decisiones técnicas
+
+PERMITIDO:
+───────────
+✅ Ejecutar comandos exactos que te den
+✅ Copiar archivos a ubicaciones especificadas
+✅ Reportar errores COMPLETOS (sin intentar arreglar)
+✅ Tomar screenshots cuando se pida
+✅ Sugerir alternativas SOLO si se te pregunta
+
+FORMATO DE REPORTE:
+───────────────────
+Siempre reporta así:
+
+```
+PASO X: [Descripción]
+COMANDO: [El comando ejecutado]
+RESULTADO: 
+  ✅ OK - [Descripción breve]
+  O
+  ❌ ERROR - [Pega el error COMPLETO]
+
+SIGUIENTE ACCIÓN:
+  Esperando instrucciones / Proceder con PASO X+1
+```
+
+
+═══════════════════════════════════════════════════════════════════
+📁 ESTRUCTURA DE ARCHIVOS RESULTANTE
+═══════════════════════════════════════════════════════════════════
+
+tradeplus-python/
+├── hub/
+│   ├── main.py ← Servidor FastAPI con endpoint /api/journal
+│   ├── journal/
+│   │   ├── __init__.py
+│   │   ├── journal_manager.py ← Orquestador
+│   │   ├── schwab_adapter.py ← Normaliza Schwab
+│   │   └── coinbase_adapter.py ← Normaliza Coinbase
+│   ├── managers/
+│   │   ├── schwab_token_manager.py ← ✅ YA EXISTE
+│   │   └── coinbase_jwt_manager.py ← ✅ YA EXISTE
+│   └── ...
+├── frontend/
+│   ├── journal.html ← Nuevo dashboard
+│   └── ...
+└── .env ← Credenciales (NO tocar)
+
+
+═══════════════════════════════════════════════════════════════════
+🚀 COMANDO DE INICIO PARA NUEVO HILO
+═══════════════════════════════════════════════════════════════════
+
+PARA PERPLEXITY:
+────────────────
+"Tenemos conexiones API REST funcionando para Schwab y Coinbase con 
+renovación automática de tokens. Necesito implementar el módulo Journal
+según el plan en el documento maestro. Genera los archivos de la FASE 1."
+
+PARA VS CODE:
+─────────────
+"Recibirás archivos generados por Perplexity. Tu rol es ejecutar
+los pasos de copia y validación exactamente como se especifican.
+NO modifiques nada sin autorización. Reporta resultados en el
+formato especificado."
+
+
+═══════════════════════════════════════════════════════════════════
+📊 ENDPOINTS API EXACTOS PARA JOURNAL
+═══════════════════════════════════════════════════════════════════
+
+SCHWAB:
+───────
+URL: https://api.schwabapi.com/trader/v1/accounts/{account_hash}/transactions
+
+Parámetros:
+  - types: "TRADE" (solo trades, no deposits/withdrawals)
+  - startDate: "2025-11-01" (formato ISO)
+  - endDate: "2025-11-07"
+
+Headers:
+  - Authorization: Bearer {token}
+
+Respuesta (relevante):
+```json
+[
+  {
+    "transactionId": 12345,
+    "transactionDate": "2025-11-06T14:30:00Z",
+    "type": "TRADE",
+    "transactionItem": {
+      "instruction": "BUY",
+      "amount": 10.0,
+      "price": 178.50,
+      "instrument": {
+        "symbol": "AAPL"
+      }
+    },
+    "fees": {
+      "commission": 0.50
+    },
+    "netAmount": -1785.50
+  }
+]
+```
+
+
+COINBASE:
+─────────
+URL: https://api.coinbase.com/api/v3/brokerage/orders/historical/fills
+
+Parámetros:
+  - start_sequence_timestamp: "2025-11-01T00:00:00Z"
+  - limit: 100
+
+Headers:
+  - Authorization: Bearer {jwt}
+  - Content-Type: application/json
+
+Respuesta (relevante):
+```json
+{
+  "fills": [
+    {
+      "trade_id": "abc-123",
+      "trade_time": "2025-11-06T14:30:00Z",
+      "product_id": "BTC-USD",
+      "side": "BUY",
+      "size": "0.01",
+      "price": "43500.00",
+      "commission": "2.17"
+    }
+  ]
+}
+```
+
+
+═══════════════════════════════════════════════════════════════════
+✅ CHECKLIST FINAL ANTES DE EMPEZAR
+═══════════════════════════════════════════════════════════════════
+
+Verificar:
+  □ Servidor FastAPI apagado (para evitar conflictos)
+  □ VS Code abierto en carpeta tradeplus-python
+  □ Perplexity tiene este documento completo
+  □ Token Schwab válido (revisar .env)
+  □ API Key Coinbase válida (revisar .env)
+  □ Python environment activado
+
+Listo para:
+  □ Perplexity genera archivos FASE 1
+  □ VS Code espera instrucciones
+  □ jfrc10101010 coordina entre ambos
+
+
+═══════════════════════════════════════════════════════════════════
+
+Versión: 1.0 FINAL
+Fecha: 7 Noviembre 2025, 10:45 AM EST
+Autor: Claude Sonnet 4.5 (Perplexity)
+Validado: jfrc10101010
+
+═══════════════════════════════════════════════════════════════════

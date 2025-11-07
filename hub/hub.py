@@ -17,6 +17,7 @@ from contextlib import asynccontextmanager
 # Importar managers
 from hub.managers.coinbase_websocket_manager import CoinbaseWebSocketManager
 from hub.managers.schwab_websocket_manager import SchwabWebSocketManager
+from hub.journal.journal_manager import JournalManager
 
 
 # =====================================================
@@ -85,6 +86,9 @@ class HubCentral:
         """
         self.config_path = Path(config_path)
         
+        # Logger - se inicializa primero
+        self.logger = self._setup_logger()
+        
         # Managers de WebSocket
         self.coinbase_manager = CoinbaseWebSocketManager(
             config_path=config_path,
@@ -93,6 +97,17 @@ class HubCentral:
         self.schwab_manager = SchwabWebSocketManager(
             config_path=str(self.config_path)
         )
+        
+        # Journal Manager (con managers de tokens)
+        try:
+            self.journal_manager = JournalManager(
+                self.schwab_manager.token_manager,
+                None,  # Coinbase JWT será creado internamente por JournalManager
+                config_path=config_path
+            )
+        except Exception as e:
+            self.logger.warning(f"⚠️ Error inicializando JournalManager: {e}")
+            self.journal_manager = None
         
         # Almacenamiento en memoria
         self.last_ticks = {}  # {symbol: {price, bid, ask, time, ...}}
@@ -106,8 +121,6 @@ class HubCentral:
         # WebSocket clients conectados
         self.ws_clients = set()
         
-        # Logger
-        self.logger = self._setup_logger()
         self.logger.info("✅ HubCentral inicializado")
     
     def _setup_logger(self):
@@ -125,44 +138,14 @@ class HubCentral:
     
     async def connect_all(self) -> bool:
         """
-        Conecta ambos managers en paralelo
-        Nota: connect() ejecuta loop infinito, así que las tareas continúan
+        Inicializa managers SIN ejecutar loops infinitos en lifespan
+        Los managers se conectarán bajo demanda cuando se acceda a /ws/live
         
         Returns:
-            True si ambos conectaron, False si alguno falló
+            True siempre (inicialización lista)
         """
-        self.logger.info("🚀 Iniciando conexión a ambos WebSockets...")
-        
-        try:
-            # Conectar ambos en paralelo
-            # Estos corren indefinidamente, pero eso está bien
-            coinbase_task = asyncio.create_task(self.coinbase_manager.connect())
-            schwab_task = asyncio.create_task(self.schwab_manager.connect())
-            
-            # Esperar 5 segundos para que se establezcan
-            # (no esperamos a que terminen porque son loops infinitos)
-            await asyncio.sleep(5)
-            
-            # Verificar que al menos UNO conectó (no ambos requeridos)
-            coinbase_ok = self.coinbase_manager.connected
-            schwab_ok = self.schwab_manager.connected
-            
-            self.logger.info(f"Managers conectados - Coinbase: {coinbase_ok}, Schwab: {schwab_ok}")
-            
-            if coinbase_ok or schwab_ok:
-                self.logger.info("✅ Al menos un manager conectado exitosamente")
-                return True
-            else:
-                self.logger.error(
-                    f"❌ Uno o más managers no conectaron. "
-                    f"Coinbase: {self.coinbase_manager.connected}, "
-                    f"Schwab: {self.schwab_manager.connected}"
-                )
-                return False
-        
-        except Exception as e:
-            self.logger.error(f"❌ Error en conexión: {e}")
-            return False
+        self.logger.info("🚀 Managers inicializados - listos para conexión bajo demanda")
+        return True
     
     async def start_receiving(self):
         """
@@ -305,20 +288,23 @@ hub_instance: Optional[HubCentral] = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup/Shutdown de FastAPI"""
-    # Startup
+    """Lifespan - inicializa HubCentral y mantiene app corriendo"""
     global hub_instance
-    hub_instance = HubCentral(config_path=".")
     
-    # Conectar managers
-    if await hub_instance.connect_all():
-        # Iniciar reception en background
-        asyncio.create_task(hub_instance.start_receiving())
+    # Startup
+    try:
+        hub_instance = HubCentral(config_path=".")
+        print("[INFO] HubCentral inicializado en lifespan")
+    except Exception as e:
+        print(f"[ERROR] Error en lifespan startup: {e}")
+        import traceback
+        traceback.print_exc()
     
-    yield
-    
-    # Shutdown
-    await hub_instance.close_all()
+    try:
+        yield
+    finally:
+        # Shutdown - aquí iría cleanup si fuera necesario
+        pass
 
 
 app = FastAPI(
@@ -372,6 +358,76 @@ async def get_ticks():
     return hub_instance.last_ticks
 
 
+@app.websocket("/ws/journal")
+async def websocket_journal(websocket: WebSocket):
+    """
+    WebSocket para Journal de Trades
+    
+    Cliente envía JSON:
+        {
+            "action": "get_journal",
+            "broker": "schwab" o "coinbase",
+            "days": 30
+        }
+    
+    Servidor responde con:
+        {
+            "trades": [...],
+            "stats": {...},
+            "broker": broker,
+            "days": days
+        }
+    """
+    await websocket.accept()
+    await hub_instance.add_ws_client(websocket)
+    
+    try:
+        while True:
+            # Recibir comando del cliente
+            data = await websocket.receive_text()
+            message = json.loads(data)
+            
+            action = message.get("action", "get_journal")
+            broker = message.get("broker", "schwab").lower()
+            days = message.get("days", 30)
+            
+            if action == "get_journal":
+                if not hub_instance or not hub_instance.journal_manager:
+                    await websocket.send_json({
+                        "error": "Hub not initialized",
+                        "trades": [],
+                        "stats": {}
+                    })
+                    continue
+                
+                try:
+                    trades = await hub_instance.journal_manager.get_journal(broker, days)
+                    stats = hub_instance.journal_manager.calculate_stats(trades)
+                    
+                    await websocket.send_json({
+                        "trades": trades,
+                        "stats": stats,
+                        "broker": broker,
+                        "days": days
+                    })
+                except Exception as e:
+                    await websocket.send_json({
+                        "error": str(e),
+                        "trades": [],
+                        "stats": {}
+                    })
+            else:
+                await websocket.send_json({
+                    "error": f"Unknown action: {action}"
+                })
+    
+    except WebSocketDisconnect:
+        await hub_instance.remove_ws_client(websocket)
+    except Exception as e:
+        hub_instance.logger.error(f"WebSocket error: {e}")
+        await hub_instance.remove_ws_client(websocket)
+
+
 @app.websocket("/ws/live")
 async def websocket_live(websocket: WebSocket):
     """WebSocket para recibir ticks en tiempo real"""
@@ -399,15 +455,3 @@ async def websocket_live(websocket: WebSocket):
     except Exception as e:
         print(f"❌ WebSocket error: {e}")
         await hub_instance.remove_ws_client(websocket)
-
-
-class HubFastAPI:
-    """Orquestador central - gestiona conectores, filtros y ejecución"""
-    
-    def __init__(self):
-        """Inicializa el hub"""
-        pass
-    
-    def start(self):
-        """Inicia el servidor FastAPI"""
-        pass

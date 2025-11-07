@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRADEPLUS V5.0 - Journal Live Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #1e3c72;
+            margin-bottom: 10px;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.online {
+            background: #10b981;
+        }
+
+        .status-dot.offline {
+            background: #ef4444;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #2a5298;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: #1e3c72;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            color: #1e3c72;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .stat-value {
+            color: #2a5298;
+            font-weight: 700;
+        }
+
+        .trades-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .trades-container h2 {
+            color: #1e3c72;
+            margin-bottom: 15px;
+        }
+
+        .trades-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .trades-table thead {
+            background: #f0f0f0;
+            border-bottom: 2px solid #1e3c72;
+        }
+
+        .trades-table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #1e3c72;
+        }
+
+        .trades-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .trades-table tbody tr:hover {
+            background: #f9f9f9;
+        }
+
+        .side-buy {
+            color: #10b981;
+            font-weight: 600;
+        }
+
+        .side-sell {
+            color: #ef4444;
+            font-weight: 600;
+        }
+
+        .broker-schwab {
+            background: #dbeafe;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .broker-coinbase {
+            background: #fef08a;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2a5298;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c00;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #c00;
+        }
+
+        .success-message {
+            background: #efe;
+            color: #0a0;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #0a0;
+        }
+
+        .timestamp {
+            font-size: 12px;
+            color: #999;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .trades-table {
+                font-size: 12px;
+            }
+
+            .trades-table th,
+            .trades-table td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- HEADER -->
+        <header>
+            <h1>🚀 TRADEPLUS V5.0 - Journal Live Test</h1>
+            <p>Datos en tiempo real desde Schwab y Coinbase</p>
+
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-dot online"></div>
+                    <span>Server: Online</span>
+                </div>
+                <div class="status-item" id="schwab-status">
+                    <div class="status-dot offline"></div>
+                    <span>Schwab: Cargando...</span>
+                </div>
+                <div class="status-item" id="coinbase-status">
+                    <div class="status-dot offline"></div>
+                    <span>Coinbase: Cargando...</span>
+                </div>
+                <div class="status-item" id="update-time">
+                    <span>Última actualización: hace poco</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- CONTROLES -->
+        <div class="controls">
+            <button onclick="refreshData()">🔄 Actualizar Ahora</button>
+            <button onclick="toggleAutoRefresh()">⏱️ Auto Refresh: OFF</button>
+            <button onclick="downloadJSON()">⬇️ Descargar JSON</button>
+        </div>
+
+        <!-- ESTADÍSTICAS -->
+        <div class="grid">
+            <div class="card">
+                <h2>📊 Totales Combinados</h2>
+                <div class="stat-row">
+                    <span class="stat-label">Total Trades:</span>
+                    <span class="stat-value" id="total-trades">-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Volumen Total:</span>
+                    <span class="stat-value" id="total-volume">$-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Comisiones:</span>
+                    <span class="stat-value" id="total-fees">$-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Compras/Ventas:</span>
+                    <span class="stat-value" id="buy-sell">-/-</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>📈 Schwab</h2>
+                <div class="stat-row">
+                    <span class="stat-label">Trades:</span>
+                    <span class="stat-value" id="schwab-trades">-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Volumen:</span>
+                    <span class="stat-value" id="schwab-volume">$-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Comisiones:</span>
+                    <span class="stat-value" id="schwab-fees">$-</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>🪙 Coinbase</h2>
+                <div class="stat-row">
+                    <span class="stat-label">Fills:</span>
+                    <span class="stat-value" id="coinbase-trades">-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Volumen:</span>
+                    <span class="stat-value" id="coinbase-volume">$-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Comisiones:</span>
+                    <span class="stat-value" id="coinbase-fees">$-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- TRADES TABLE -->
+        <div class="trades-container">
+            <h2>📋 Últimos Trades (Últimos 7 días)</h2>
+            <div id="trades-content">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Cargando datos...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let autoRefreshEnabled = false;
+        let autoRefreshInterval = null;
+
+        // Cargar datos al iniciar
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshData();
+            // Actualizar cada 30 segundos automáticamente
+            setInterval(refreshData, 30000);
+        });
+
+        async function refreshData() {
+            try {
+                const response = await fetch('/api/journal');
+                if (!response.ok) throw new Error('Error en API');
+
+                const data = await response.json();
+
+                // Actualizar estadísticas totales
+                const stats = data.stats || {};
+                document.getElementById('total-trades').textContent = stats.total_trades || 0;
+                document.getElementById('total-volume').textContent = 
+                    '$' + (stats.total_volume || 0).toFixed(2);
+                document.getElementById('total-fees').textContent = 
+                    '$' + (stats.total_fees || 0).toFixed(2);
+                document.getElementById('buy-sell').textContent = 
+                    `${stats.buys || 0}/${stats.sells || 0}`;
+
+                // Schwab
+                const schwab = stats.by_broker?.schwab || {};
+                document.getElementById('schwab-trades').textContent = schwab.trades || 0;
+                document.getElementById('schwab-volume').textContent = 
+                    '$' + (schwab.volume || 0).toFixed(2);
+                document.getElementById('schwab-fees').textContent = 
+                    '$' + (schwab.fees || 0).toFixed(2);
+
+                // Coinbase
+                const coinbase = stats.by_broker?.coinbase || {};
+                document.getElementById('coinbase-trades').textContent = coinbase.trades || 0;
+                document.getElementById('coinbase-volume').textContent = 
+                    '$' + (coinbase.volume || 0).toFixed(2);
+                document.getElementById('coinbase-fees').textContent = 
+                    '$' + (coinbase.fees || 0).toFixed(2);
+
+                // Actualizar tabla de trades
+                renderTrades(data.trades || []);
+
+                // Actualizar status
+                updateBrokerStatus(schwab.trades > 0, coinbase.trades > 0);
+
+                // Mostrar hora de actualización
+                const time = new Date().toLocaleTimeString('es-ES');
+                document.getElementById('update-time').textContent = 
+                    `Última actualización: ${time}`;
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('trades-content').innerHTML = 
+                    `<div class="error-message">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        function renderTrades(trades) {
+            if (!trades || trades.length === 0) {
+                document.getElementById('trades-content').innerHTML = 
+                    '<p style="padding: 20px; text-align: center; color: #999;">Sin trades en los últimos 7 días</p>';
+                return;
+            }
+
+            let html = '<table class="trades-table"><thead><tr>' +
+                '<th>Fecha</th>' +
+                '<th>Broker</th>' +
+                '<th>Símbolo</th>' +
+                '<th>Lado</th>' +
+                '<th>Cantidad</th>' +
+                '<th>Precio</th>' +
+                '<th>Total</th>' +
+                '<th>Comisión</th>' +
+                '</tr></thead><tbody>';
+
+            trades.forEach(trade => {
+                const date = new Date(trade.datetime).toLocaleString('es-ES');
+                const side = trade.side === 'BUY' ? 
+                    `<span class="side-buy">BUY</span>` : 
+                    `<span class="side-sell">SELL</span>`;
+                const brokerClass = `broker-${trade.broker}`;
+
+                html += `<tr>
+                    <td>${date}</td>
+                    <td><span class="${brokerClass}">${trade.broker.toUpperCase()}</span></td>
+                    <td>${trade.symbol}</td>
+                    <td>${side}</td>
+                    <td>${(trade.quantity || 0).toFixed(4)}</td>
+                    <td>$${(trade.price || 0).toFixed(2)}</td>
+                    <td>$${(trade.amount || 0).toFixed(2)}</td>
+                    <td>$${(trade.fee || 0).toFixed(2)}</td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            document.getElementById('trades-content').innerHTML = html;
+        }
+
+        function updateBrokerStatus(schwabOnline, coinbaseOnline) {
+            const schwabEl = document.getElementById('schwab-status');
+            const coinbaseEl = document.getElementById('coinbase-status');
+
+            schwabEl.innerHTML = `
+                <div class="status-dot ${schwabOnline ? 'online' : 'offline'}"></div>
+                <span>Schwab: ${schwabOnline ? 'Online' : 'Offline'}</span>
+            `;
+
+            coinbaseEl.innerHTML = `
+                <div class="status-dot ${coinbaseOnline ? 'online' : 'offline'}"></div>
+                <span>Coinbase: ${coinbaseOnline ? 'Online' : 'Offline'}</span>
+            `;
+        }
+
+        function toggleAutoRefresh() {
+            autoRefreshEnabled = !autoRefreshEnabled;
+            const btn = event.target;
+
+            if (autoRefreshEnabled) {
+                btn.textContent = '⏱️ Auto Refresh: ON';
+                btn.style.background = '#10b981';
+                autoRefreshInterval = setInterval(refreshData, 10000);
+            } else {
+                btn.textContent = '⏱️ Auto Refresh: OFF';
+                btn.style.background = '#2a5298';
+                clearInterval(autoRefreshInterval);
+            }
+        }
+
+        function downloadJSON() {
+            fetch('/api/journal')
+                .then(r => r.json())
+                .then(data => {
+                    const json = JSON.stringify(data, null, 2);
+                    const blob = new Blob([json], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `journal_${new Date().toISOString()}.json`;
+                    a.click();
+                });
+        }
+    </script>
+</body>
+</html>

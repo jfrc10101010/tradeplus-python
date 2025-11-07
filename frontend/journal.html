@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRADEPLUS - Journal</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- AG Grid -->
+    <script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community/styles/ag-grid.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community/styles/ag-theme-alpine-dark.css">
+
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .tab-active {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        .tab-inactive {
+            background: #1e293b;
+            color: #94a3b8;
+        }
+
+        .tab-inactive:hover {
+            background: #334155;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid #334155;
+        }
+    </style>
+</head>
+<body class="p-6">
+
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold mb-2">📊 TRADEPLUS - Trading Journal</h1>
+        <p class="text-gray-400">Historial de trades unificado</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-2 mb-4">
+        <button 
+            id="tab-schwab" 
+            class="tab-active px-6 py-3 rounded-lg font-semibold transition-all"
+            onclick="switchBroker('schwab')"
+        >
+            📈 T001 Journal (Schwab)
+        </button>
+        <button 
+            id="tab-coinbase" 
+            class="tab-inactive px-6 py-3 rounded-lg font-semibold transition-all"
+            onclick="switchBroker('coinbase')"
+        >
+            🪙 C001 Journal (Coinbase)
+        </button>
+    </div>
+
+    <!-- Stats Cards -->
+    <div id="stats-container" class="grid grid-cols-4 gap-4 mb-6">
+        <div class="stat-card p-4 rounded-lg">
+            <p class="text-sm text-gray-400 mb-1">Total Trades</p>
+            <p id="stat-trades" class="text-2xl font-bold">-</p>
+        </div>
+        <div class="stat-card p-4 rounded-lg">
+            <p class="text-sm text-gray-400 mb-1">Total Volume</p>
+            <p id="stat-volume" class="text-2xl font-bold">-</p>
+        </div>
+        <div class="stat-card p-4 rounded-lg">
+            <p class="text-sm text-gray-400 mb-1">Total Fees</p>
+            <p id="stat-fees" class="text-2xl font-bold text-red-400">-</p>
+        </div>
+        <div class="stat-card p-4 rounded-lg">
+            <p class="text-sm text-gray-400 mb-1">Buy/Sell Ratio</p>
+            <p id="stat-ratio" class="text-2xl font-bold">-</p>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="text-center py-12 hidden">
+        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <p class="mt-4 text-gray-400">Cargando trades...</p>
+    </div>
+
+    <!-- AG Grid Table -->
+    <div id="journal-grid" class="ag-theme-alpine-dark" style="height: 600px;"></div>
+
+    <script>
+        let currentBroker = 'schwab';
+        let gridApi;
+
+        // Configuración de columnas AG Grid
+        const columnDefs = [
+            { 
+                field: 'datetime', 
+                headerName: 'Fecha/Hora',
+                width: 180,
+                valueFormatter: params => new Date(params.value).toLocaleString('es-ES')
+            },
+            { 
+                field: 'symbol', 
+                headerName: 'Símbolo',
+                width: 120,
+                cellStyle: { fontWeight: 'bold' }
+            },
+            { 
+                field: 'side', 
+                headerName: 'Lado',
+                width: 100,
+                cellStyle: params => ({
+                    color: params.value === 'BUY' ? '#10b981' : '#ef4444',
+                    fontWeight: 'bold'
+                })
+            },
+            { 
+                field: 'quantity', 
+                headerName: 'Cantidad',
+                width: 120,
+                valueFormatter: params => parseFloat(params.value).toFixed(4)
+            },
+            { 
+                field: 'price', 
+                headerName: 'Precio',
+                width: 120,
+                valueFormatter: params => '$' + parseFloat(params.value).toFixed(2)
+            },
+            { 
+                field: 'fee', 
+                headerName: 'Comisión',
+                width: 120,
+                valueFormatter: params => '$' + parseFloat(params.value).toFixed(2),
+                cellStyle: { color: '#ef4444' }
+            },
+            { 
+                field: 'total', 
+                headerName: 'Total',
+                width: 140,
+                valueFormatter: params => '$' + parseFloat(params.value).toFixed(2),
+                cellStyle: { fontWeight: 'bold' }
+            }
+        ];
+
+        // Opciones del grid
+        const gridOptions = {
+            columnDefs: columnDefs,
+            rowData: [],
+            defaultColDef: {
+                sortable: true,
+                filter: true,
+                resizable: true
+            },
+            theme: 'alpine-dark'
+        };
+
+        // Inicializar grid
+        document.addEventListener('DOMContentLoaded', () => {
+            const gridDiv = document.getElementById('journal-grid');
+            gridApi = agGrid.createGrid(gridDiv, gridOptions);
+
+            // Cargar Schwab por defecto
+            loadJournal('schwab');
+        });
+
+        // Cambiar broker
+        async function switchBroker(broker) {
+            currentBroker = broker;
+
+            // Actualizar tabs
+            document.getElementById('tab-schwab').className = 
+                broker === 'schwab' ? 'tab-active px-6 py-3 rounded-lg font-semibold transition-all' : 
+                                      'tab-inactive px-6 py-3 rounded-lg font-semibold transition-all';
+
+            document.getElementById('tab-coinbase').className = 
+                broker === 'coinbase' ? 'tab-active px-6 py-3 rounded-lg font-semibold transition-all' : 
+                                        'tab-inactive px-6 py-3 rounded-lg font-semibold transition-all';
+
+            // Cargar datos
+            await loadJournal(broker);
+        }
+
+        // Cargar journal vía WebSocket
+        async function loadJournal(broker) {
+            try {
+                // Mostrar loading
+                document.getElementById('loading').classList.remove('hidden');
+                document.getElementById('journal-grid').style.display = 'none';
+
+                // Conectar a WebSocket
+                const ws = new WebSocket(`ws://localhost:8080/ws/journal`);
+
+                ws.onopen = () => {
+                    console.log('WebSocket conectado');
+                    // Enviar comando para obtener journal
+                    ws.send(JSON.stringify({
+                        action: 'get_journal',
+                        broker: broker,
+                        days: 30
+                    }));
+                };
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+
+                    if (data.error) {
+                        console.error('Error del servidor:', data.error);
+                        alert(`Error: ${data.error}`);
+                    } else {
+                        // Actualizar grid
+                        gridApi.setGridOption('rowData', data.trades);
+
+                        // Actualizar stats
+                        updateStats(data.stats);
+                    }
+
+                    // Ocultar loading
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('journal-grid').style.display = 'block';
+
+                    // Cerrar WebSocket
+                    ws.close();
+                };
+
+                ws.onerror = (error) => {
+                    console.error('Error WebSocket:', error);
+                    alert(`Error de conexión: ${error}`);
+                    document.getElementById('loading').classList.add('hidden');
+                };
+
+                ws.onclose = () => {
+                    console.log('WebSocket desconectado');
+                };
+
+            } catch (error) {
+                console.error('Error en loadJournal:', error);
+                alert(`Error: ${error.message}`);
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+
+        // Actualizar estadísticas
+        function updateStats(stats) {
+            document.getElementById('stat-trades').textContent = stats.total_trades;
+            document.getElementById('stat-volume').textContent = '$' + stats.total_volume.toFixed(2);
+            document.getElementById('stat-fees').textContent = '$' + stats.total_fees.toFixed(2);
+
+            const ratio = stats.buys && stats.sells ? 
+                (stats.buys / stats.sells).toFixed(2) : 
+                '-';
+            document.getElementById('stat-ratio').textContent = ratio;
+        }
+    </script>
+</body>
+</html>

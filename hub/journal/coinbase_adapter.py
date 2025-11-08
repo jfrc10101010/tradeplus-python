@@ -27,6 +27,13 @@ class CoinbaseAdapter:
     def __init__(self):
         """Inicializa el adaptador con JWT manager"""
         try:
+            # Importar desde hub.managers
+            import sys
+            import os
+            hub_path = os.path.dirname(os.path.dirname(__file__))
+            if hub_path not in sys.path:
+                sys.path.insert(0, hub_path)
+            
             from managers.coinbase_jwt_manager import CoinbaseJWTManager
             self.jwt_manager = CoinbaseJWTManager()
             self.session = requests.Session()

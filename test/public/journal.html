@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📊 JOURNAL - TradePlus V5</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    * {
+      --color-emerald: #10b981;
+      --color-red: #ef4444;
+      --color-slate-900: #0f172a;
+      --color-slate-800: #1e293b;
+      --color-slate-700: #334155;
+      --color-text-primary: #e2e8f0;
+      --color-text-secondary: #94a3b8;
+    }
+    
+    body {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: var(--color-text-primary);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .kpi-card {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(71, 85, 105, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+    }
+    
+    .kpi-card:hover {
+      background: rgba(30, 41, 59, 0.9);
+      border-color: rgba(71, 85, 105, 0.5);
+      transform: translateY(-2px);
+    }
+    
+    .chart-card {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(71, 85, 105, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .gain {
+      color: var(--color-emerald);
+      font-weight: 600;
+    }
+    
+    .loss {
+      color: var(--color-red);
+      font-weight: 600;
+    }
+    
+    .tab-btn {
+      border-bottom: 3px solid transparent;
+      padding: 12px 24px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      color: var(--color-text-secondary);
+    }
+    
+    .tab-btn.active {
+      border-bottom-color: var(--color-emerald);
+      color: var(--color-emerald);
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.3s ease-in;
+    }
+    
+    .date-filter-btn {
+      background: rgba(51, 65, 85, 0.5);
+      color: #94a3b8;
+      border: 1px solid rgba(71, 85, 105, 0.3);
+    }
+    
+    .date-filter-btn:hover {
+      background: rgba(71, 85, 105, 0.8);
+      color: #e2e8f0;
+    }
+    
+    .date-filter-btn.active {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      border-color: #10b981;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(16, 185, 129, 0.3);
+      border-top: 3px solid var(--color-emerald);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .table-row {
+      border-bottom: 1px solid rgba(71, 85, 105, 0.2);
+      transition: background 0.2s ease;
+    }
+    
+    .table-row:hover {
+      background: rgba(16, 185, 129, 0.05);
+    }
+    
+    .pulse {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .5; }
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- HEADER -->
+<header class="sticky top-0 z-50 backdrop-blur-lg bg-slate-900/80 border-b border-slate-700/50">
+  <div class="max-w-7xl mx-auto px-6 py-4">
+    <div class="flex justify-between items-center mb-4">
+      <div>
+        <h1 class="text-3xl font-bold">📊 JOURNAL</h1>
+        <p class="text-slate-400 text-sm">Análisis de trading en tiempo real</p>
+      </div>
+      <div class="flex gap-4 items-center">
+        <button onclick="refreshData()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-lg font-semibold transition">
+          🔄 Actualizar
+        </button>
+        <span class="text-slate-400 text-sm">
+          Última actualización: <span id="last-update" class="text-emerald-400">cargando...</span>
+        </span>
+      </div>
+    </div>
+    
+    <!-- FILTRO DE FECHAS (SIEMPRE VISIBLE) -->
+    <div class="flex items-center gap-4 bg-slate-800/50 rounded-lg p-3">
+      <span class="text-slate-400 font-semibold text-sm">📅 PERÍODO:</span>
+      <div class="flex gap-2">
+        <button onclick="changeDays(7)" id="btn-7d" class="date-filter-btn px-4 py-2 rounded-lg font-semibold transition">
+          7 días
+        </button>
+        <button onclick="changeDays(30)" id="btn-30d" class="date-filter-btn active px-4 py-2 rounded-lg font-semibold transition">
+          30 días
+        </button>
+        <button onclick="changeDays(90)" id="btn-90d" class="date-filter-btn px-4 py-2 rounded-lg font-semibold transition">
+          90 días
+        </button>
+        <button onclick="changeDays(365)" id="btn-365d" class="date-filter-btn px-4 py-2 rounded-lg font-semibold transition">
+          1 año
+        </button>
+        <button onclick="showCustomDatePicker()" id="btn-custom" class="date-filter-btn px-4 py-2 rounded-lg font-semibold transition">
+          📆 Custom
+        </button>
+      </div>
+      <div class="ml-auto flex flex-col items-end">
+        <span id="current-period-display" class="text-emerald-400 font-bold">
+          Últimos 30 días
+        </span>
+        <span id="current-period-stats" class="text-slate-400 text-xs mt-1">
+          Cargando...
+        </span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main class="max-w-7xl mx-auto px-6 py-8">
+
+  <!-- TABS -->
+  <div class="flex gap-0 mb-8 border-b border-slate-700">
+    <button id="tab-btn-schwab" onclick="switchTab('schwab')" class="tab-btn active">
+      📈 SCHWAB (<span id="count-schwab">-</span> ops)
+    </button>
+    <button id="tab-btn-coinbase" onclick="switchTab('coinbase')" class="tab-btn">
+      🪙 COINBASE (<span id="count-coinbase">-</span> ops)
+    </button>
+    <button id="tab-btn-all" onclick="switchTab('all')" class="tab-btn">
+      🌐 TODOS (<span id="count-all">-</span> ops)
+    </button>
+  </div>
+
+  <!-- TAB SCHWAB -->
+  <div id="tab-schwab" class="tab-content active">
+    
+    <!-- KPIs Row 1 - Principales -->
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-4">
+      <div class="kpi-card text-center">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">Total Ops</p>
+        <p class="text-3xl font-bold mt-2" id="kpi-schwab-ops">-</p>
+      </div>
+      <div class="kpi-card text-center">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">P&L Realizado</p>
+        <p class="text-3xl font-bold mt-2" id="kpi-schwab-pl-realized" style="color: var(--color-emerald);">-</p>
+        <p class="text-xs text-slate-400 mt-1">(Cerradas)</p>
+      </div>
+      <div class="kpi-card text-center">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">P&L Unrealized</p>
+        <p class="text-3xl font-bold mt-2" id="kpi-schwab-pl-unrealized">-</p>
+        <p class="text-xs text-slate-400 mt-1">(Abiertas)</p>
+      </div>
+      <div class="kpi-card text-center">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">Win Rate</p>
+        <p class="text-3xl font-bold mt-2" id="kpi-schwab-wr">-</p>
+      </div>
+      <div class="kpi-card text-center">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">Profit Factor</p>
+        <p class="text-3xl font-bold mt-2" id="kpi-schwab-pf">-</p>
+      </div>
+      <div class="kpi-card text-center">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">Posiciones</p>
+        <p class="text-2xl font-bold mt-2">
+          <span class="gain" id="kpi-schwab-pos-closed">-</span> / 
+          <span class="text-slate-400" id="kpi-schwab-pos-open">-</span>
+        </p>
+        <p class="text-xs text-slate-400 mt-1">Cerr / Abier</p>
+      </div>
+    </div>
+    
+    <!-- Posiciones Abiertas -->
+    <div class="chart-card mb-8">
+      <h3 class="text-lg font-bold mb-4">📊 Posiciones Abiertas</h3>
+      <div id="open-positions-schwab" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+    </div>
+
+    <!-- Capital + Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <!-- Capital Card -->
+      <div class="chart-card">
+        <h3 class="text-lg font-bold mb-4">💰 Capital Actual</h3>
+        <p class="text-4xl font-bold gain mb-2" id="capital-actual-schwab">$-</p>
+        <p class="text-sm text-slate-400 mb-4">Meta EOY 2026: $25,000</p>
+        
+        <div class="mt-6 bg-emerald-900/20 rounded p-4">
+          <div class="flex justify-between mb-2">
+            <span class="text-sm text-slate-400">Progreso</span>
+            <span class="text-sm font-bold gain" id="progress-pct-schwab">0%</span>
+          </div>
+          <div class="w-full bg-slate-700 rounded h-3 overflow-hidden">
+            <div class="bg-emerald-500 h-3 rounded transition-all duration-500" id="progress-bar-schwab" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Capital Evolution Chart -->
+      <div class="chart-card lg:col-span-2">
+        <h3 class="text-lg font-bold mb-4">📈 Evolución de Capital</h3>
+        <canvas id="chart-capital-schwab" height="200"></canvas>
+      </div>
+    </div>
+
+    <!-- P&L Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div class="chart-card">
+        <h3 class="text-lg font-bold mb-4">📊 P&L Acumulado (Diario)</h3>
+        <canvas id="chart-pl-daily-schwab" height="250"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3 class="text-lg font-bold mb-4">🎯 Top Símbolos</h3>
+        <canvas id="chart-symbols-schwab" height="250"></canvas>
+      </div>
+    </div>
+
+    <!-- Trades Table -->
+    <div class="chart-card mb-8">
+      <h3 class="text-lg font-bold mb-4">📋 Detalle de Trades (últimos 30)</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="border-b border-slate-600">
+            <tr class="text-slate-400 text-xs uppercase">
+              <th class="text-left py-3 px-4">Fecha</th>
+              <th class="text-left py-3 px-4">Símbolo</th>
+              <th class="text-left py-3 px-4">Lado</th>
+              <th class="text-right py-3 px-4">Cantidad</th>
+              <th class="text-right py-3 px-4">Precio</th>
+              <th class="text-right py-3 px-4">Total</th>
+              <th class="text-right py-3 px-4">Fee</th>
+              <th class="text-right py-3 px-4">P&L USD</th>
+              <th class="text-right py-3 px-4">P&L %</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-schwab"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Top Winners/Losers -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="chart-card">
+        <h3 class="text-lg font-bold mb-4">🥇 Top 5 Ganadores</h3>
+        <div id="winners-list-schwab" class="space-y-3"></div>
+      </div>
+      <div class="chart-card">
+        <h3 class="text-lg font-bold mb-4">🔻 Top 5 Perdedores</h3>
+        <div id="losers-list-schwab" class="space-y-3"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- TAB COINBASE (Estructura idéntica) -->
+  <div id="tab-coinbase" class="tab-content">
+    
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-4">
+      <div class="kpi-card text-center">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">Total Ops</p>
+        <p class="text-3xl font-bold mt-2" id="kpi-coinbase-ops">-</p>
+      </div>
+      <div class="kpi-card text-center">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">P&L Realizado</p>
+        <p class="text-3xl font-bold mt-2" id="kpi-coinbase-pl-realized" style="color: var(--color-emerald);">-</p>
+        <p class="text-xs text-slate-400 mt-1">(Cerradas)</p>
+      </div>
+      <div class="kpi-card text-center">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">P&L Unrealized</p>
+        <p class="text-3xl font-bold mt-2" id="kpi-coinbase-pl-unrealized">-</p>
+        <p class="text-xs text-slate-400 mt-1">(Abiertas)</p>
+      </div>
+      <div class="kpi-card text-center">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">Win Rate</p>
+        <p class="text-3xl font-bold mt-2" id="kpi-coinbase-wr">-</p>
+      </div>
+      <div class="kpi-card text-center">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">Profit Factor</p>
+        <p class="text-3xl font-bold mt-2" id="kpi-coinbase-pf">-</p>
+      </div>
+      <div class="kpi-card text-center">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">Posiciones</p>
+        <p class="text-2xl font-bold mt-2">
+          <span class="gain" id="kpi-coinbase-pos-closed">-</span> / 
+          <span class="text-slate-400" id="kpi-coinbase-pos-open">-</span>
+        </p>
+        <p class="text-xs text-slate-400 mt-1">Cerr / Abier</p>
+      </div>
+    </div>
+    
+    <!-- Posiciones Abiertas -->
+    <div class="chart-card mb-8">
+      <h3 class="text-lg font-bold mb-4">📊 Posiciones Abiertas</h3>
+      <div id="open-positions-coinbase" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+    </div>
+
+    <!-- Performance por Hora -->
+    <div class="chart-card mb-8">
+      <h3 class="text-lg font-bold mb-4">⏰ Performance por Hora del Día</h3>
+      <canvas id="chart-hourly-coinbase" height="200"></canvas>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div class="chart-card">
+        <h3 class="text-lg font-bold mb-4">💰 Capital Actual</h3>
+        <p class="text-4xl font-bold gain mb-2" id="capital-actual-coinbase">$-</p>
+        <p class="text-sm text-slate-400 mb-4">Meta EOY 2026: $25,000</p>
+        <div class="mt-6 bg-emerald-900/20 rounded p-4">
+          <div class="flex justify-between mb-2">
+            <span class="text-sm text-slate-400">Progreso</span>
+            <span class="text-sm font-bold gain" id="progress-pct-coinbase">0%</span>
+          </div>
+          <div class="w-full bg-slate-700 rounded h-3 overflow-hidden">
+            <div class="bg-emerald-500 h-3 rounded transition-all duration-500" id="progress-bar-coinbase" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="chart-card lg:col-span-2">
+        <h3 class="text-lg font-bold mb-4">📈 Evolución de Capital</h3>
+        <canvas id="chart-capital-coinbase" height="200"></canvas>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div class="chart-card">
+        <h3 class="text-lg font-bold mb-4">📊 P&L Acumulado (Diario)</h3>
+        <canvas id="chart-pl-daily-coinbase" height="250"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3 class="text-lg font-bold mb-4">🎯 Top Símbolos</h3>
+        <canvas id="chart-symbols-coinbase" height="250"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card mb-8">
+      <h3 class="text-lg font-bold mb-4">📋 Detalle de Trades</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="border-b border-slate-600">
+            <tr class="text-slate-400 text-xs uppercase">
+              <th class="text-left py-3 px-4">Fecha</th>
+              <th class="text-left py-3 px-4">Símbolo</th>
+              <th class="text-left py-3 px-4">Lado</th>
+              <th class="text-right py-3 px-4">Cantidad</th>
+              <th class="text-right py-3 px-4">Precio</th>
+              <th class="text-right py-3 px-4">Total</th>
+              <th class="text-right py-3 px-4">Fee</th>
+              <th class="text-right py-3 px-4">P&L USD</th>
+              <th class="text-right py-3 px-4">P&L %</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-coinbase"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="chart-card">
+        <h3 class="text-lg font-bold mb-4">🥇 Top Ganadores</h3>
+        <div id="winners-list-coinbase" class="space-y-3"></div>
+      </div>
+      <div class="chart-card">
+        <h3 class="text-lg font-bold mb-4">🔻 Top Perdedores</h3>
+        <div id="losers-list-coinbase" class="space-y-3"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- TAB ALL (TODOS) -->
+  <div id="tab-all" class="tab-content">
+    
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-4">
+      <div class="kpi-card text-center">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">Total Ops</p>
+        <p class="text-3xl font-bold mt-2" id="kpi-all-ops">-</p>
+      </div>
+      <div class="kpi-card text-center">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">P&L Realizado</p>
+        <p class="text-3xl font-bold mt-2" id="kpi-all-pl-realized" style="color: var(--color-emerald);">-</p>
+        <p class="text-xs text-slate-400 mt-1">(Cerradas)</p>
+      </div>
+      <div class="kpi-card text-center">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">P&L Unrealized</p>
+        <p class="text-3xl font-bold mt-2" id="kpi-all-pl-unrealized">-</p>
+        <p class="text-xs text-slate-400 mt-1">(Abiertas)</p>
+      </div>
+      <div class="kpi-card text-center">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">Win Rate</p>
+        <p class="text-3xl font-bold mt-2" id="kpi-all-wr">-</p>
+      </div>
+      <div class="kpi-card text-center">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">Profit Factor</p>
+        <p class="text-3xl font-bold mt-2" id="kpi-all-pf">-</p>
+      </div>
+      <div class="kpi-card text-center">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">Posiciones</p>
+        <p class="text-2xl font-bold mt-2">
+          <span class="gain" id="kpi-all-pos-closed">-</span> / 
+          <span class="text-slate-400" id="kpi-all-pos-open">-</span>
+        </p>
+        <p class="text-xs text-slate-400 mt-1">Cerr / Abier</p>
+      </div>
+    </div>
+    
+    <!-- Posiciones Abiertas -->
+    <div class="chart-card mb-8">
+      <h3 class="text-lg font-bold mb-4">📊 Posiciones Abiertas (Combinado)</h3>
+      <div id="open-positions-all" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+    </div>
+
+    <!-- Performance por Hora -->
+    <div class="chart-card mb-8">
+      <h3 class="text-lg font-bold mb-4">⏰ Performance por Hora del Día (Todos los Brokers)</h3>
+      <canvas id="chart-hourly-all" height="200"></canvas>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div class="chart-card">
+        <h3 class="text-lg font-bold mb-4">💰 Capital Actual</h3>
+        <p class="text-4xl font-bold gain mb-2" id="capital-actual-all">$-</p>
+        <p class="text-sm text-slate-400 mb-4">Meta EOY 2026: $25,000</p>
+        <div class="mt-6 bg-emerald-900/20 rounded p-4">
+          <div class="flex justify-between mb-2">
+            <span class="text-sm text-slate-400">Progreso</span>
+            <span class="text-sm font-bold gain" id="progress-pct-all">0%</span>
+          </div>
+          <div class="w-full bg-slate-700 rounded h-3 overflow-hidden">
+            <div class="bg-emerald-500 h-3 rounded transition-all duration-500" id="progress-bar-all" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="chart-card lg:col-span-2">
+        <h3 class="text-lg font-bold mb-4">📈 Evolución de Capital (Combinado)</h3>
+        <canvas id="chart-capital-all" height="200"></canvas>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div class="chart-card">
+        <h3 class="text-lg font-bold mb-4">📊 P&L Acumulado (Diario)</h3>
+        <canvas id="chart-pl-daily-all" height="250"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3 class="text-lg font-bold mb-4">🎯 Top Símbolos</h3>
+        <canvas id="chart-symbols-all" height="250"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card mb-8">
+      <h3 class="text-lg font-bold mb-4">📋 Detalle de Trades (últimos 50)</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="border-b border-slate-600">
+            <tr class="text-slate-400 text-xs uppercase">
+              <th class="text-left py-3 px-4">Broker</th>
+              <th class="text-left py-3 px-4">Fecha</th>
+              <th class="text-left py-3 px-4">Símbolo</th>
+              <th class="text-left py-3 px-4">Lado</th>
+              <th class="text-right py-3 px-4">Cantidad</th>
+              <th class="text-right py-3 px-4">Precio</th>
+              <th class="text-right py-3 px-4">Total</th>
+              <th class="text-right py-3 px-4">Fee</th>
+              <th class="text-right py-3 px-4">P&L USD</th>
+              <th class="text-right py-3 px-4">P&L %</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-all"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="chart-card">
+        <h3 class="text-lg font-bold mb-4">🥇 Top 10 Ganadores</h3>
+        <div id="winners-list-all" class="space-y-3"></div>
+      </div>
+      <div class="chart-card">
+        <h3 class="text-lg font-bold mb-4">🔻 Top 10 Perdedores</h3>
+        <div id="losers-list-all" class="space-y-3"></div>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<!-- SCRIPTS -->
+<script>
+  let chartsMap = {};  // Guardar refs de charts para actualizar
+  let schwabData = null;
+  let coinbaseData = null;
+  let allData = null;
+  let currentDays = 30;  // Default 30 días
+
+  // ========================================================================
+  // GESTIÓN DE FILTROS DE FECHA
+  // ========================================================================
+  
+  function changeDays(days) {
+    console.log('🔄 Cambiando período a:', days, 'días');
+    currentDays = days;
+    
+    // Update active button
+    document.querySelectorAll('.date-filter-btn').forEach(btn => btn.classList.remove('active'));
+    const targetBtn = document.getElementById(`btn-${days}d`);
+    if (targetBtn) {
+      targetBtn.classList.add('active');
+    } else {
+      console.error('❌ No se encontró botón con ID:', `btn-${days}d`);
+    }
+    
+    // Update display text
+    const displayTexts = {
+      7: 'Últimos 7 días',
+      30: 'Últimos 30 días',
+      90: 'Últimos 90 días',
+      365: 'Último año'
+    };
+    const displayText = displayTexts[days] || `Últimos ${days} días`;
+    document.getElementById('current-period-display').textContent = displayText;
+    console.log('📅 Período actualizado a:', displayText);
+    
+    // Destruir TODOS los charts antes de recargar
+    Object.keys(chartsMap).forEach(key => {
+      if (chartsMap[key]) {
+        chartsMap[key].destroy();
+        console.log('🗑️ Chart destruido:', key);
+      }
+    });
+    chartsMap = {};
+    
+    // Reload data with new period
+    console.log('📊 Recargando datos con days=', currentDays);
+    loadData();
+  }
+  
+  function showCustomDatePicker() {
+    // TODO: Implementar modal con date pickers
+    alert('📆 Custom date picker - Por implementar\n\nPor ahora usa los botones predefinidos: 7d, 30d, 90d, 1 año');
+  }
+
+  // ========================================================================
+  // CARGAR DATOS
+  // ========================================================================
+
+  async function loadData() {
+    console.log('🔄 loadData() iniciado con currentDays =', currentDays);
+    document.getElementById('last-update').textContent = 'cargando...';
+    document.getElementById('last-update').classList.add('pulse');
+    
+    try {
+      // Cargar ambos brokers + combinado en paralelo usando currentDays
+      console.log('📡 Fetching:', `/api/journal/broker/schwab?days=${currentDays}`);
+      console.log('📡 Fetching:', `/api/journal/broker/coinbase?days=${currentDays}`);
+      console.log('📡 Fetching:', `/api/journal?days=${currentDays}`);
+      
+      const [schwabRes, coinbaseRes, allRes] = await Promise.all([
+        fetch(`/api/journal/broker/schwab?days=${currentDays}`),
+        fetch(`/api/journal/broker/coinbase?days=${currentDays}`),
+        fetch(`/api/journal?days=${currentDays}`)
+      ]);
+
+      schwabData = await schwabRes.json();
+      coinbaseData = await coinbaseRes.json();
+      allData = await allRes.json();
+      
+      console.log('✅ Schwab data loaded:', schwabData.stats?.total_trades, 'trades');
+      console.log('✅ Coinbase data loaded:', coinbaseData.stats?.total_trades, 'trades');
+      console.log('✅ All data loaded:', allData.stats?.total_trades, 'trades');
+
+      // Validar que no hay errores
+      if (schwabData.error) {
+        console.error('Error Schwab:', schwabData.error);
+      }
+      if (coinbaseData.error) {
+        console.error('Error Coinbase:', coinbaseData.error);
+      }
+      if (allData.error) {
+        console.error('Error All:', allData.error);
+      }
+
+      // Renderizar UI
+      if (schwabData && !schwabData.error) renderTab('schwab');
+      if (coinbaseData && !coinbaseData.error) renderTab('coinbase');
+      if (allData && !allData.error) renderTab('all');
+
+      // Actualizar contador de trades en período
+      const totalTrades = (schwabData?.stats?.total_trades || 0) + (coinbaseData?.stats?.total_trades || 0);
+      const statsText = `${totalTrades} trades totales | Schwab: ${schwabData?.stats?.total_trades || 0} | Coinbase: ${coinbaseData?.stats?.total_trades || 0}`;
+      document.getElementById('current-period-stats').textContent = statsText;
+      console.log('📊 Stats:', statsText);
+
+      const now = new Date();
+      document.getElementById('last-update').textContent = now.toLocaleTimeString('es-ES');
+      document.getElementById('last-update').classList.remove('pulse');
+
+    } catch (error) {
+      console.error('Error loading data:', error);
+      document.getElementById('last-update').textContent = 'Error al cargar';
+      document.getElementById('last-update').classList.remove('pulse');
+    }
+  }
+
+  // ========================================================================
+  // RENDERIZAR POSICIONES ABIERTAS
+  // ========================================================================
+  
+  function renderOpenPositions(positions, broker) {
+    const container = document.getElementById(`open-positions-${broker}`);
+    if (!container) return;
+    
+    if (!positions || positions.length === 0) {
+      container.innerHTML = '<div class="col-span-3 text-center text-slate-400 py-4">Sin posiciones abiertas</div>';
+      return;
+    }
+    
+    // AGRUPAR POR SÍMBOLO
+    const grouped = {};
+    positions.forEach(pos => {
+      if (!grouped[pos.symbol]) {
+        grouped[pos.symbol] = {
+          symbol: pos.symbol,
+          side: pos.side,
+          qty: 0,
+          total_cost: 0,
+          total_value: 0,
+          unrealized_pl: 0
+        };
+      }
+      grouped[pos.symbol].qty += pos.qty;
+      grouped[pos.symbol].total_cost += pos.avg_cost * pos.qty;
+      grouped[pos.symbol].total_value += pos.current_value;
+      grouped[pos.symbol].unrealized_pl += pos.unrealized_pl || 0;
+    });
+    
+    // Convertir a array y calcular promedios
+    const groupedPositions = Object.values(grouped).map(pos => ({
+      ...pos,
+      avg_cost: pos.total_cost / pos.qty,
+      pl_percent: ((pos.unrealized_pl / pos.total_cost) * 100) || 0
+    }));
+    
+    container.innerHTML = groupedPositions.map(pos => {
+      const pl = pos.unrealized_pl;
+      const plClass = pl >= 0 ? 'gain' : 'loss';
+      const plSign = pl >= 0 ? '+' : '';
+      const plPctClass = pos.pl_percent >= 0 ? 'gain' : 'loss';
+      
+      return `
+        <div class="kpi-card">
+          <div class="flex justify-between items-start mb-2">
+            <span class="font-bold text-xl text-emerald-400">${pos.symbol}</span>
+            <span class="text-xs px-2 py-1 rounded ${pos.side === 'LONG' ? 'bg-emerald-900/30 text-emerald-400' : 'bg-red-900/30 text-red-400'}">
+              ${pos.side}
+            </span>
+          </div>
+          <div class="text-sm text-slate-400 space-y-1">
+            <div class="flex justify-between">
+              <span>Cantidad Total:</span>
+              <span class="font-bold text-white">${pos.qty.toFixed(0)} shares</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Precio Promedio:</span>
+              <span class="font-bold text-white">$${pos.avg_cost.toFixed(2)}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Costo Total:</span>
+              <span class="font-bold text-white">$${pos.total_cost.toFixed(2)}</span>
+            </div>
+            <div class="flex justify-between pt-2 border-t border-slate-600">
+              <span>P&L Unrealized:</span>
+              <span class="font-bold ${plClass}">${plSign}$${Math.abs(pl).toFixed(2)} (${plSign}${pos.pl_percent.toFixed(2)}%)</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ========================================================================
+  // RENDERIZAR TAB
+  // ========================================================================
+
+  function renderTab(broker) {
+    const data = broker === 'schwab' ? schwabData : (broker === 'coinbase' ? coinbaseData : allData);
+    if (!data || data.error) return;
+
+    const suffix = broker === 'schwab' ? '-schwab' : (broker === 'coinbase' ? '-coinbase' : '-all');
+
+    // KPIs
+    const stats = data.stats || {};
+    document.getElementById(`kpi-${broker}-ops`).textContent = stats.total_trades || 0;
+    
+    // P&L Realizado vs Unrealized
+    const plRealized = stats.pl_realized || 0;
+    const plUnrealized = stats.pl_unrealized || 0;
+    
+    document.getElementById(`kpi-${broker}-pl-realized`).textContent = `${plRealized >= 0 ? '+' : ''}$${Math.abs(plRealized).toFixed(2)}`;
+    document.getElementById(`kpi-${broker}-pl-realized`).className = `text-3xl font-bold mt-2 ${plRealized >= 0 ? 'gain' : 'loss'}`;
+    
+    document.getElementById(`kpi-${broker}-pl-unrealized`).textContent = `${plUnrealized >= 0 ? '+' : ''}$${Math.abs(plUnrealized).toFixed(2)}`;
+    document.getElementById(`kpi-${broker}-pl-unrealized`).className = `text-3xl font-bold mt-2 ${plUnrealized >= 0 ? 'gain' : (plUnrealized < 0 ? 'loss' : 'text-slate-400')}`;
+    
+    document.getElementById(`kpi-${broker}-wr`).textContent = `${(stats.win_rate || 0).toFixed(2)}%`;
+    document.getElementById(`kpi-${broker}-pf`).textContent = (stats.profit_factor || 0).toFixed(2);
+    
+    // Posiciones abiertas/cerradas
+    const posClosed = stats.positions_closed_count || 0;
+    const posOpen = stats.positions_open_count || 0;
+    document.getElementById(`kpi-${broker}-pos-closed`).textContent = posClosed;
+    document.getElementById(`kpi-${broker}-pos-open`).textContent = posOpen;
+    
+    document.getElementById(`count-${broker}`).textContent = stats.total_trades || 0;
+    
+    // Renderizar posiciones abiertas
+    renderOpenPositions(data.positions?.open || [], broker);
+
+    // Capital
+    const capital = data.capital || {};
+    const currentCapital = capital.current || 5000;
+    document.getElementById(`capital-actual-${broker}`).textContent = `$${currentCapital.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    
+    const progressPct = Math.min(((currentCapital) / 25000) * 100, 100);
+    document.getElementById(`progress-pct-${broker}`).textContent = `${progressPct.toFixed(1)}%`;
+    document.getElementById(`progress-bar-${broker}`).style.width = `${progressPct}%`;
+
+    // Renderizar charts
+    renderCapitalChart(data, broker, suffix);
+    renderPLDailyChart(data, broker, suffix);
+    renderSymbolsChart(data, broker, suffix);
+    renderHourlyPerformance(data.trades || [], broker, suffix);
+
+    // Tabla
+    const maxTrades = broker === 'all' ? 50 : 30;
+    renderTable(data.trades || [], broker, suffix, maxTrades);
+
+    // Winners/Losers
+    const topN = broker === 'all' ? 10 : 5;
+    renderWinnersLosers(data.trades || [], broker, suffix, topN);
+  }
+
+  // ========================================================================
+  // CHARTS
+  // ========================================================================
+
+  function renderCapitalChart(data, broker, suffix) {
+    const evolution = (data.capital?.evolution || []).slice(-30);  // Últimos 30 días
+    const ctx = document.getElementById(`chart-capital${suffix}`);
+    if (!ctx) return;
+    
+    const chartKey = `capital-${broker}`;
+    if (chartsMap[chartKey]) chartsMap[chartKey].destroy();
+
+    chartsMap[chartKey] = new Chart(ctx.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: evolution.map(d => d.date.slice(5)),
+        datasets: [{
+          label: 'Capital (USD)',
+          data: evolution.map(d => d.capital_end),
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 5,
+          pointBackgroundColor: '#10b981',
+          pointHoverRadius: 7
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: (context) => {
+                const idx = context[0].dataIndex;
+                return evolution[idx].date;
+              },
+              label: (context) => {
+                const value = context.parsed.y;
+                const idx = context.dataIndex;
+                const plDaily = evolution[idx].pl_daily || 0;
+                return [
+                  `Capital: $${value.toLocaleString('en-US', {minimumFractionDigits: 2})}`,
+                  `P&L del día: $${plDaily.toFixed(2)}`
+                ];
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            ticks: { 
+              color: '#94a3b8',
+              callback: (value) => '$' + value.toLocaleString('en-US', {maximumFractionDigits: 0})
+            },
+            grid: { color: 'rgba(71, 85, 105, 0.1)' },
+            beginAtZero: false,
+            title: {
+              display: true,
+              text: 'Capital (USD)',
+              color: '#94a3b8'
+            }
+          },
+          x: {
+            ticks: { color: '#94a3b8', maxRotation: 45 },
+            grid: { display: false },
+            title: {
+              display: true,
+              text: 'Fecha',
+              color: '#94a3b8'
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderHourlyPerformance(trades, broker, suffix) {
+    const ctx = document.getElementById(`chart-hourly${suffix}`);
+    if (!ctx) return;
+    
+    // Agrupar trades por hora (9 AM - 4 PM = market hours)
+    const hourlyPL = {};
+    for (let hour = 9; hour <= 16; hour++) {
+      hourlyPL[hour] = { pl: 0, count: 0 };
+    }
+    
+    trades.forEach(trade => {
+      if (!trade.datetime || !trade.pl_realized) return;
+      
+      const tradeDate = new Date(trade.datetime);
+      const hour = tradeDate.getHours();
+      
+      if (hour >= 9 && hour <= 16) {
+        hourlyPL[hour].pl += (trade.pl_realized || 0);
+        hourlyPL[hour].count++;
+      }
+    });
+    
+    const hours = Object.keys(hourlyPL).sort();
+    const plValues = hours.map(h => hourlyPL[h].pl);
+    const counts = hours.map(h => hourlyPL[h].count);
+    
+    const chartKey = `hourly-${broker}`;
+    if (chartsMap[chartKey]) chartsMap[chartKey].destroy();
+    
+    chartsMap[chartKey] = new Chart(ctx.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: hours.map(h => `${h}:00`),
+        datasets: [{
+          label: 'P&L por Hora',
+          data: plValues,
+          backgroundColor: plValues.map(v => v >= 0 ? '#10b981' : '#ef4444'),
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const idx = context.dataIndex;
+                const pl = plValues[idx];
+                const count = counts[idx];
+                return `P&L: $${pl.toFixed(2)} (${count} trades)`;
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            ticks: { 
+              color: '#94a3b8',
+              callback: (value) => '$' + value.toFixed(0)
+            },
+            grid: { color: 'rgba(71, 85, 105, 0.1)' }
+          },
+          x: {
+            ticks: { color: '#94a3b8' },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+
+  function renderPLDailyChart(data, broker, suffix) {
+    const evolution = (data.capital?.evolution || []).slice(-20);
+    const ctx = document.getElementById(`chart-pl-daily${suffix}`);
+    if (!ctx) return;
+    
+    const chartKey = `pl-daily-${broker}`;
+    if (chartsMap[chartKey]) chartsMap[chartKey].destroy();
+
+    chartsMap[chartKey] = new Chart(ctx.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: evolution.map(d => d.date.slice(5)),
+        datasets: [{
+          label: 'P&L Diario (USD)',
+          data: evolution.map(d => d.pl_daily),
+          backgroundColor: evolution.map(d => d.pl_daily >= 0 ? '#10b981' : '#ef4444'),
+          borderRadius: 6,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { 
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: (context) => {
+                const idx = context[0].dataIndex;
+                return evolution[idx].date;
+              },
+              label: (context) => {
+                const value = context.parsed.x;
+                return `P&L del día: $${value.toFixed(2)}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { 
+              color: '#94a3b8',
+              callback: (value) => '$' + value.toFixed(0)
+            },
+            grid: { color: 'rgba(71, 85, 105, 0.1)' },
+            title: {
+              display: true,
+              text: 'P&L (USD)',
+              color: '#94a3b8'
+            }
+          },
+          y: {
+            ticks: { color: '#94a3b8', font: { size: 11 } },
+            grid: { display: false },
+            title: {
+              display: true,
+              text: 'Fecha',
+              color: '#94a3b8'
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderSymbolsChart(data, broker, suffix) {
+    const symbols = (data.symbols || {});
+    const top5 = Object.entries(symbols)
+      .sort((a, b) => Math.abs(b[1].pl_usd) - Math.abs(a[1].pl_usd))
+      .slice(0, 5);
+
+    const ctx = document.getElementById(`chart-symbols${suffix}`);
+    if (!ctx) return;
+    
+    const chartKey = `symbols-${broker}`;
+    if (chartsMap[chartKey]) chartsMap[chartKey].destroy();
+
+    chartsMap[chartKey] = new Chart(ctx.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: top5.map(s => s[0]),
+        datasets: [{
+          label: 'P&L USD',
+          data: top5.map(s => s[1].pl_usd),
+          backgroundColor: top5.map(s => s[1].pl_usd >= 0 ? '#10b981' : '#ef4444'),
+          borderRadius: 6
+        }]
+      },
+      options: {
+        indexAxis: 'x',
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            ticks: { color: '#94a3b8' },
+            grid: { color: 'rgba(71, 85, 105, 0.1)' }
+          },
+          x: {
+            ticks: { color: '#94a3b8' },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+
+  // ========================================================================
+  // TABLA DE TRADES
+  // ========================================================================
+
+  function renderTable(trades, broker, suffix, maxTrades = 30) {
+    const tbody = document.getElementById(`tbody${suffix}`);
+    if (!tbody) return;
+    
+    const lastTrades = trades.slice(-maxTrades).reverse();  // Últimos N, más recientes primero
+
+    tbody.innerHTML = lastTrades.map(t => {
+      const plUsd = (t.pl_usd || 0);
+      const plPercent = (t.pl_percent || 0);
+      const isWinner = plUsd > 0;
+      
+      const dateStr = new Date(t.datetime).toLocaleDateString('es-ES', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      const brokerBadge = broker === 'all' ? `<td class="py-3 px-4"><span class="text-xs px-2 py-1 rounded ${t.broker === 'schwab' ? 'bg-blue-900 text-blue-300' : 'bg-orange-900 text-orange-300'}">${t.broker?.toUpperCase()}</span></td>` : '';
+      
+      return `
+        <tr class="table-row">
+          ${brokerBadge}
+          <td class="py-3 px-4 text-slate-300">${dateStr}</td>
+          <td class="py-3 px-4 font-bold text-emerald-400">${t.symbol}</td>
+          <td class="py-3 px-4">${t.side === 'BUY' ? '📈' : '📉'} ${t.side}</td>
+          <td class="py-3 px-4 text-right">${parseFloat(t.quantity).toFixed(t.broker === 'coinbase' ? 8 : 2)}</td>
+          <td class="py-3 px-4 text-right">$${parseFloat(t.price).toFixed(2)}</td>
+          <td class="py-3 px-4 text-right">$${parseFloat(t.total || t.amount || 0).toFixed(2)}</td>
+          <td class="py-3 px-4 text-right">$${parseFloat(t.fee).toFixed(2)}</td>
+          <td class="py-3 px-4 text-right ${isWinner ? 'gain' : 'loss'}">${isWinner ? '+' : ''}$${Math.abs(plUsd).toFixed(2)}</td>
+          <td class="py-3 px-4 text-right ${isWinner ? 'gain' : 'loss'}">${isWinner ? '+' : ''}${Math.abs(plPercent).toFixed(2)}%</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // ========================================================================
+  // WINNERS/LOSERS
+  // ========================================================================
+
+  function renderWinnersLosers(trades, broker, suffix, topN = 5) {
+    const symbolPL = {};
+    
+    trades.forEach(t => {
+      if (!symbolPL[t.symbol]) {
+        symbolPL[t.symbol] = { pl_usd: 0, trades: 0 };
+      }
+      symbolPL[t.symbol].pl_usd += (t.pl_usd || 0);
+      symbolPL[t.symbol].trades += 1;
+    });
+
+    const sorted = Object.entries(symbolPL)
+      .map(([sym, stats]) => ({ symbol: sym, ...stats }))
+      .sort((a, b) => b.pl_usd - a.pl_usd);
+
+    const winners = sorted.slice(0, topN);
+    const losers = sorted.slice(-topN).reverse();
+
+    const winnersEl = document.getElementById(`winners-list${suffix}`);
+    const losersEl = document.getElementById(`losers-list${suffix}`);
+    
+    if (winnersEl) {
+      winnersEl.innerHTML = winners.map(w => `
+        <div class="bg-slate-700/30 p-3 rounded flex justify-between hover:bg-slate-700/50 transition">
+          <div>
+            <span class="font-bold">${w.symbol}</span>
+            <p class="text-xs text-slate-400">${w.trades} ops</p>
+          </div>
+          <span class="gain text-lg">+$${Math.abs(w.pl_usd).toFixed(2)}</span>
+        </div>
+      `).join('');
+    }
+
+    if (losersEl) {
+      losersEl.innerHTML = losers.map(l => `
+        <div class="bg-slate-700/30 p-3 rounded flex justify-between hover:bg-slate-700/50 transition">
+          <div>
+            <span class="font-bold">${l.symbol}</span>
+            <p class="text-xs text-slate-400">${l.trades} ops</p>
+          </div>
+          <span class="loss text-lg">-$${Math.abs(l.pl_usd).toFixed(2)}</span>
+        </div>
+      `).join('');
+    }
+  }
+
+  // ========================================================================
+  // CONTROLS
+  // ========================================================================
+
+  function switchTab(tab) {
+    // Remover active de todos
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+    // Activar el seleccionado
+    document.getElementById(`tab-btn-${tab}`).classList.add('active');
+    document.getElementById(`tab-${tab}`).classList.add('active');
+  }
+
+  function refreshData() {
+    loadData();
+  }
+
+  // INIT
+  window.addEventListener('load', () => {
+    loadData();
+    // Auto-refresh cada 2 segundos (API REST)
+    setInterval(loadData, 2 * 1000);
+  });
+</script>
+
+</body>
+</html>

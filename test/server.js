@@ -42,7 +42,7 @@ let journalCache = {
 /**
  * FUNCIÓN CORE: Ejecuta Python de forma segura
  */
-async function fetchJournalData() {
+async function fetchJournalData(days = 30) {
     return new Promise((resolve, reject) => {
         try {
             const projectRoot = path.join(__dirname, '..');
@@ -55,8 +55,8 @@ sys.path.insert(0, '${hubPath.replace(/\\/g, '\\\\')}')
 
 try:
     from journal.journal_manager import JournalManager
-    manager = JournalManager()
-    result = manager.get_combined_journal(days=7)
+    manager = JournalManager(capital_initial=5000.0)
+    result = manager.get_combined_journal(days=${days})
     print(json.dumps(result, indent=2, default=str))
 except Exception as e:
     import traceback
@@ -97,11 +97,7 @@ except Exception as e:
             python.on('close', (code) => {
                 if (code !== 0) {
                     log(`❌ Python terminó con código ${code}`);
-                    if (stderr) {
-                        reject(new Error(`Python error: ${stderr}`));
-                    } else {
-                        reject(new Error(`Python process exited con código ${code}`));
-                    }
+                    reject(new Error(`Python process exited con código ${code}. Stderr: ${stderr}`));
                     return;
                 }
 
@@ -143,9 +139,9 @@ except Exception as e:
 }
 
 /**
- * Obtener datos de un broker específico
+ * Obtener datos de un broker específico CON P&L
  */
-async function fetchBrokerData(broker) {
+async function fetchBrokerData(broker, days = 7) {
     return new Promise((resolve, reject) => {
         try {
             const projectRoot = path.join(__dirname, '..');
@@ -158,8 +154,8 @@ sys.path.insert(0, '${hubPath.replace(/\\/g, '\\\\')}')
 
 try:
     from journal.journal_manager import JournalManager
-    manager = JournalManager()
-    result = manager.get_trades_by_broker('${broker}', days=7)
+    manager = JournalManager(capital_initial=5000.0)
+    result = manager.get_trades_by_broker('${broker}', days=${days})
     print(json.dumps(result, indent=2, default=str))
 except Exception as e:
     import traceback
@@ -170,6 +166,8 @@ except Exception as e:
     }
     print(json.dumps(error))
 `;
+
+            log(`📍 Ejecutando Python para broker ${broker} (days=${days})`);
 
             const python = spawn('python', ['-c', pythonScript], {
                 cwd: projectRoot,
@@ -237,7 +235,11 @@ except Exception as e:
 // GET /api/journal - Journal combinado completo
 app.get('/api/journal', async (req, res) => {
     try {
-        const data = await fetchJournalData();
+        const days = parseInt(req.query.days) || 30;
+        log(`📊 GET /api/journal?days=${days}`);
+        log(`📍 Ejecutando Python para obtener journal combinado...`);
+        
+        const data = await fetchJournalData(days);
         
         journalCache.combined = data;
         journalCache.timestamp = data.timestamp;
@@ -275,17 +277,95 @@ app.get('/api/journal/stats', async (req, res) => {
     }
 });
 
-// GET /api/journal/broker/:name - Datos de un broker específico
+// GET /api/journal/broker/:name - Datos de un broker específico CON P&L
 app.get('/api/journal/broker/:name', async (req, res) => {
     try {
         const broker = req.params.name;
-        const data = await fetchBrokerData(broker);
+        const days = parseInt(req.query.days) || 7;
+        
+        log(`📊 GET /api/journal/broker/${broker}?days=${days}`);
+        
+        const data = await fetchBrokerData(broker, days);
+        
+        if (data.error) {
+            log(`❌ Error broker ${broker}: ${data.error}`);
+            return res.status(400).json(data);
+        }
+        
+        log(`✅ Broker ${broker}: ${data.stats?.total_trades || 0} trades, P&L: $${data.capital?.pl_total_usd || 0}`);
         res.json(data);
     } catch (error) {
         res.status(500).json({
             error: error.message,
-            trades: []
+            trades: [],
+            stats: {},
+            capital: {}
         });
+    }
+});
+
+// NUEVO: GET /api/journal/broker/:name/capital - Evolución de capital
+app.get('/api/journal/broker/:name/capital', async (req, res) => {
+    try {
+        const broker = req.params.name;
+        const days = parseInt(req.query.days) || 7;
+        
+        const data = await fetchBrokerData(broker, days);
+        
+        if (data.error) {
+            return res.status(400).json({ error: data.error });
+        }
+        
+        res.json({
+            broker: broker,
+            capital: data.capital || {},
+            evolution: data.capital?.evolution || []
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// NUEVO: GET /api/journal/symbols - Top símbolos
+app.get('/api/journal/symbols', async (req, res) => {
+    try {
+        const days = parseInt(req.query.days) || 7;
+        
+        // Obtener journal combinado
+        const data = await fetchJournalData();
+        
+        if (data.error) {
+            return res.status(400).json({ error: data.error });
+        }
+        
+        // Extraer símbolos
+        const symbols = data.symbols || {};
+        
+        // Top 10 ganadores
+        const winners = Object.entries(symbols)
+            .map(([sym, stats]) => ({
+                symbol: sym,
+                ...stats
+            }))
+            .sort((a, b) => b.pl_usd - a.pl_usd)
+            .slice(0, 10);
+        
+        // Top 10 perdedores
+        const losers = Object.entries(symbols)
+            .map(([sym, stats]) => ({
+                symbol: sym,
+                ...stats
+            }))
+            .sort((a, b) => a.pl_usd - b.pl_usd)
+            .slice(0, 10);
+        
+        res.json({
+            all_symbols: Object.keys(symbols).length,
+            winners,
+            losers
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
 });
 

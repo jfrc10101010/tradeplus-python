@@ -27,6 +27,13 @@ class SchwabAdapter:
     def __init__(self):
         """Inicializa el adaptador con token manager"""
         try:
+            # Importar desde hub.managers
+            import sys
+            import os
+            hub_path = os.path.dirname(os.path.dirname(__file__))
+            if hub_path not in sys.path:
+                sys.path.insert(0, hub_path)
+            
             from managers.schwab_token_manager import SchwabTokenManager
             self.token_manager = SchwabTokenManager()
             self.session = requests.Session()
@@ -82,6 +89,48 @@ class SchwabAdapter:
         except Exception as e:
             logger.error(f"Error obteniendo account_hash: {e}")
             raise
+    
+    def get_account_balance(self) -> Dict[str, float]:
+        """
+        Obtiene balance actual de la cuenta Schwab
+        
+        Returns:
+            Dict con: cash_balance, account_value (Net Liq), buying_power
+        """
+        try:
+            logger.info("Obteniendo balance de cuenta Schwab...")
+            
+            token = self.token_manager.get_current_token()
+            account_hash = self._get_account_hash()
+            
+            url = f"{self.BASE_URL}/trader/v1/accounts/{account_hash}"
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/json"
+            }
+            
+            response = self.session.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            sec_account = data.get('securitiesAccount', {})
+            balances = sec_account.get('currentBalances', {})
+            
+            result = {
+                'cash_balance': balances.get('cashBalance', 0.0),
+                'account_value': balances.get('liquidationValue', 0.0),  # Net Liq
+                'buying_power': balances.get('buyingPower', 0.0),
+                'long_market_value': balances.get('longMarketValue', 0.0)
+            }
+            
+            logger.info(f"Balance obtenido: Net Liq=${result['account_value']:,.2f}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo balance: {e}")
+            import traceback
+            logger.error(f"Traceback:\n{traceback.format_exc()}")
+            return {'cash_balance': 0.0, 'account_value': 0.0, 'buying_power': 0.0, 'long_market_value': 0.0}
     
     def get_transactions(self, days: int = 7) -> List[Dict]:
         """

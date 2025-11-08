@@ -1,0 +1,82 @@
+[
+  {
+    "id": "12345678901",
+    "datetime": "2025-11-07T14:30:00+00:00",
+    "symbol": "HOOD",
+    "side": "BUY",
+    "quantity": 5.0,
+    "price": 35.42,
+    "total": 177.10,
+    "broker": "schwab"
+  },
+  {
+    "id": "12345678902",
+    "datetime": "2025-11-07T15:45:00+00:00",
+    "symbol": "HOOD",
+    "side": "BUY",
+    "quantity": 10.0,
+    "price": 35.80,
+    "total": 358.00,
+    "broker": "schwab"
+  },
+  {
+    "id": "12345678903",
+    "datetime": "2025-11-06T10:20:00+00:00",
+    "symbol": "NU",
+    "side": "BUY",
+    "quantity": 1.0,
+    "price": 15.25,
+    "total": 15.25,
+    "broker": "schwab"
+  },
+  {
+    "id": "12345678904",
+    "datetime": "2025-11-06T11:30:00+00:00",
+    "symbol": "NU",
+    "side": "BUY",
+    "quantity": 1.0,
+    "price": 15.30,
+    "total": 15.30,
+    "broker": "schwab"
+  },
+  {
+    "id": "12345678905",
+    "datetime": "2025-11-05T09:15:00+00:00",
+    "symbol": "AMD",
+    "side": "BUY",
+    "quantity": 5.0,
+    "price": 142.50,
+    "total": 712.50,
+    "broker": "schwab"
+  },
+  {
+    "id": "12345678906",
+    "datetime": "2025-11-05T14:20:00+00:00",
+    "symbol": "AMD",
+    "side": "SELL",
+    "quantity": 5.0,
+    "price": 145.80,
+    "total": 729.00,
+    "broker": "schwab"
+  },
+  {
+    "id": "12345678907",
+    "datetime": "2025-11-04T10:00:00+00:00",
+    "symbol": "NVDA",
+    "side": "BUY",
+    "quantity": 2.0,
+    "price": 720.50,
+    "total": 1441.00,
+    "broker": "schwab"
+  },
+  {
+    "id": "12345678908",
+    "datetime": "2025-11-03T13:30:00+00:00",
+    "symbol": "COIN",
+    "side": "BUY",
+    "quantity": 3.0,
+    "price": 245.75,
+    "total": 737.25,
+    "broker": "schwab"
+  }
+]

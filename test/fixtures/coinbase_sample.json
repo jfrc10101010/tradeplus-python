@@ -1,0 +1,13 @@
+﻿[
+  {
+    "id": "515e7804-eeb5-4922-b659-ab4be6dcf519",
+    "datetime": "2025-11-07T15:23:20.415658+00:00",
+    "symbol": "BTC-USD",
+    "side": "BUY",
+    "quantity": 0.00492942,
+    "price": 100823.16,
+    "fee": 2.9819982082032,
+    "amount": 497.0,
+    "broker": "coinbase"
+  }
+]

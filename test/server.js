@@ -241,16 +241,13 @@ app.get('/api/journal', async (req, res) => {
         
         const data = await fetchJournalData(days);
         
-        journalCache.combined = data;
-        journalCache.timestamp = data.timestamp;
-        journalCache.updatedAt = new Date();
-        journalCache.error = null;
+        // NO CACHEAR - El período puede cambiar dinámicamente
+        // Cache debe implementarse en el backend Python (Phase 2)
 
         res.json(data);
 
     } catch (error) {
         log(`❌ Error en GET /api/journal: ${error.message}`);
-        journalCache.error = error.message;
 
         res.status(500).json({
             error: error.message,

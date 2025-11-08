@@ -153,14 +153,7 @@ class JournalManager:
         
         total_wins_usd = sum([op['pl_usd'] for op in closed_operations if op['pl_usd'] > 0])
         total_losses_usd = abs(sum([op['pl_usd'] for op in closed_operations if op['pl_usd'] <= 0]))
-        
-        # Profit Factor: Si no hay pérdidas pero hay ganancias, devolver el valor de ganancias (no infinito)
-        if total_losses_usd > 0:
-            profit_factor = total_wins_usd / total_losses_usd
-        elif total_wins_usd > 0:
-            profit_factor = total_wins_usd  # No hay pérdidas, devolver ganancias totales
-        else:
-            profit_factor = 0.0  # No hay trades cerrados
+        profit_factor = (total_wins_usd / total_losses_usd) if total_losses_usd > 0 else 0.0
         
         pl_realized_usd = sum([op['pl_usd'] for op in closed_operations])
         capital_invested_closed = sum([op['cost_basis'] for op in closed_operations])

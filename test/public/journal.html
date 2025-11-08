@@ -570,6 +570,83 @@
   let coinbaseData = null;
   let allData = null;
   let currentDays = 30;  // Default 30 días
+  let ws = null;  // WebSocket connection
+  let currentBroker = 'schwab';  // Broker activo
+
+  // ========================================================================
+  // WEBSOCKET CONNECTION
+  // ========================================================================
+  
+  function connectWebSocket() {
+    const wsUrl = `ws://${window.location.host}/ws/journal`;
+    console.log('🔌 Conectando a WebSocket:', wsUrl);
+    
+    ws = new WebSocket(wsUrl);
+    
+    ws.onopen = () => {
+      console.log('✅ WebSocket conectado');
+      // Solicitar datos iniciales
+      requestData();
+    };
+    
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        console.log('📨 Mensaje recibido:', message.type);
+        
+        if (message.data) {
+          // Actualizar datos según el broker
+          const broker = message.broker || 'all';
+          
+          if (broker === 'all') {
+            allData = message.data;
+            if (currentBroker === 'all') renderTab('all');
+          } else if (broker === 'schwab') {
+            schwabData = message.data;
+            if (currentBroker === 'schwab') renderTab('schwab');
+          } else if (broker === 'coinbase') {
+            coinbaseData = message.data;
+            if (currentBroker === 'coinbase') renderTab('coinbase');
+          }
+          
+          // Actualizar timestamp
+          const now = new Date();
+          document.getElementById('last-update').textContent = now.toLocaleTimeString('es-ES');
+          
+          // Actualizar contador
+          updateStatsCounter();
+        }
+      } catch (error) {
+        console.error('❌ Error procesando mensaje:', error);
+      }
+    };
+    
+    ws.onerror = (error) => {
+      console.error('❌ WebSocket error:', error);
+    };
+    
+    ws.onclose = () => {
+      console.log('🔌 WebSocket desconectado, reconectando en 3s...');
+      setTimeout(connectWebSocket, 3000);
+    };
+  }
+  
+  function requestData() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      // Solicitar los 3 brokers con el período actual
+      ws.send(JSON.stringify({ broker: 'all', days: currentDays }));
+      ws.send(JSON.stringify({ broker: 'schwab', days: currentDays }));
+      ws.send(JSON.stringify({ broker: 'coinbase', days: currentDays }));
+    }
+  }
+  
+  function updateStatsCounter() {
+    const totalTradesSchwab = schwabData?.trades?.length || 0;
+    const totalTradesCoinbase = coinbaseData?.trades?.length || 0;
+    const totalOps = (schwabData?.stats?.total_ops || 0) + (coinbaseData?.stats?.total_ops || 0);
+    const statsText = `${totalOps} operaciones | ${totalTradesSchwab + totalTradesCoinbase} trades | Schwab: ${totalTradesSchwab} | Coinbase: ${totalTradesCoinbase}`;
+    document.getElementById('current-period-stats').textContent = statsText;
+  }
 
   // ========================================================================
   // GESTIÓN DE FILTROS DE FECHA
@@ -608,9 +685,9 @@
     });
     chartsMap = {};
     
-    // Reload data with new period
-    console.log('📊 Recargando datos con days=', currentDays);
-    loadData();
+    // Solicitar nuevos datos via WebSocket
+    console.log('📊 Solicitando datos via WebSocket con days=', currentDays);
+    requestData();
   }
   
   function showCustomDatePicker() {
@@ -619,66 +696,10 @@
   }
 
   // ========================================================================
-  // CARGAR DATOS
+  // CARGAR DATOS (LEGACY - Ahora usamos WebSocket)
   // ========================================================================
-
-  async function loadData() {
-    console.log('🔄 loadData() iniciado con currentDays =', currentDays);
-    document.getElementById('last-update').textContent = 'cargando...';
-    document.getElementById('last-update').classList.add('pulse');
-    
-    try {
-      // Cargar ambos brokers + combinado en paralelo usando currentDays
-      console.log('📡 Fetching:', `/api/journal/broker/schwab?days=${currentDays}`);
-      console.log('📡 Fetching:', `/api/journal/broker/coinbase?days=${currentDays}`);
-      console.log('📡 Fetching:', `/api/journal?days=${currentDays}`);
-      
-      const [schwabRes, coinbaseRes, allRes] = await Promise.all([
-        fetch(`/api/journal/broker/schwab?days=${currentDays}`),
-        fetch(`/api/journal/broker/coinbase?days=${currentDays}`),
-        fetch(`/api/journal?days=${currentDays}`)
-      ]);
-
-      schwabData = await schwabRes.json();
-      coinbaseData = await coinbaseRes.json();
-      allData = await allRes.json();
-      
-      console.log('✅ Schwab data loaded:', schwabData.stats?.total_trades, 'trades');
-      console.log('✅ Coinbase data loaded:', coinbaseData.stats?.total_trades, 'trades');
-      console.log('✅ All data loaded:', allData.stats?.total_trades, 'trades');
-
-      // Validar que no hay errores
-      if (schwabData.error) {
-        console.error('Error Schwab:', schwabData.error);
-      }
-      if (coinbaseData.error) {
-        console.error('Error Coinbase:', coinbaseData.error);
-      }
-      if (allData.error) {
-        console.error('Error All:', allData.error);
-      }
-
-      // Renderizar UI
-      if (schwabData && !schwabData.error) renderTab('schwab');
-      if (coinbaseData && !coinbaseData.error) renderTab('coinbase');
-      if (allData && !allData.error) renderTab('all');
-
-      // Actualizar contador de trades en período
-      const totalTrades = (schwabData?.stats?.total_trades || 0) + (coinbaseData?.stats?.total_trades || 0);
-      const statsText = `${totalTrades} trades totales | Schwab: ${schwabData?.stats?.total_trades || 0} | Coinbase: ${coinbaseData?.stats?.total_trades || 0}`;
-      document.getElementById('current-period-stats').textContent = statsText;
-      console.log('📊 Stats:', statsText);
-
-      const now = new Date();
-      document.getElementById('last-update').textContent = now.toLocaleTimeString('es-ES');
-      document.getElementById('last-update').classList.remove('pulse');
-
-    } catch (error) {
-      console.error('Error loading data:', error);
-      document.getElementById('last-update').textContent = 'Error al cargar';
-      document.getElementById('last-update').classList.remove('pulse');
-    }
-  }
+  
+  // Función eliminada - Todo se maneja via WebSocket ahora
 
   // ========================================================================
   // RENDERIZAR POSICIONES ABIERTAS
@@ -766,13 +787,16 @@
 
     const suffix = broker === 'schwab' ? '-schwab' : (broker === 'coinbase' ? '-coinbase' : '-all');
 
-    // KPIs
+    // KPIs - USAR CAMPOS CORRECTOS DEL API T0
     const stats = data.stats || {};
-    document.getElementById(`kpi-${broker}-ops`).textContent = stats.total_trades || 0;
+    const positions = data.positions || {};
     
-    // P&L Realizado vs Unrealized
-    const plRealized = stats.pl_realized || 0;
-    const plUnrealized = stats.pl_unrealized || 0;
+    // Total Ops = operaciones (no trades individuales)
+    document.getElementById(`kpi-${broker}-ops`).textContent = stats.total_ops || 0;
+    
+    // P&L Realizado vs Unrealized - USAR CAMPOS _usd
+    const plRealized = stats.pl_realized_usd || 0;
+    const plUnrealized = stats.pl_unrealized_usd || 0;
     
     document.getElementById(`kpi-${broker}-pl-realized`).textContent = `${plRealized >= 0 ? '+' : ''}$${Math.abs(plRealized).toFixed(2)}`;
     document.getElementById(`kpi-${broker}-pl-realized`).className = `text-3xl font-bold mt-2 ${plRealized >= 0 ? 'gain' : 'loss'}`;
@@ -783,13 +807,15 @@
     document.getElementById(`kpi-${broker}-wr`).textContent = `${(stats.win_rate || 0).toFixed(2)}%`;
     document.getElementById(`kpi-${broker}-pf`).textContent = (stats.profit_factor || 0).toFixed(2);
     
-    // Posiciones abiertas/cerradas
-    const posClosed = stats.positions_closed_count || 0;
-    const posOpen = stats.positions_open_count || 0;
+    // Posiciones abiertas/cerradas - USAR positions del API
+    const posClosed = positions.closed_count || 0;
+    const posOpen = positions.open_count || 0;
     document.getElementById(`kpi-${broker}-pos-closed`).textContent = posClosed;
     document.getElementById(`kpi-${broker}-pos-open`).textContent = posOpen;
     
-    document.getElementById(`count-${broker}`).textContent = stats.total_trades || 0;
+    // Count total de trades (no ops)
+    const tradesCount = data.period?.trades_count || data.trades?.length || 0;
+    document.getElementById(`count-${broker}`).textContent = tradesCount;
     
     // Renderizar posiciones abiertas
     renderOpenPositions(data.positions?.open || [], broker);
@@ -1182,14 +1208,13 @@
   }
 
   function refreshData() {
-    loadData();
+    requestData();  // Usar WebSocket
   }
 
-  // INIT
+  // INIT - Conectar WebSocket al cargar página
   window.addEventListener('load', () => {
-    loadData();
-    // Auto-refresh cada 2 segundos (API REST)
-    setInterval(loadData, 2 * 1000);
+    console.log('🚀 Iniciando TradePlus Journal con WebSocket');
+    connectWebSocket();
   });
 </script>
 

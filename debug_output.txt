@@ -1,0 +1,65 @@
+﻿python : [2025-11-07 18:29:46] [INFO] Γ£à Credenciales Schwab 
+cargadas desde .env
+At line:1 char:1
++ python debug_schwab_data.py 2>&1 | Out-File -Encoding utf8 
+debug_outp ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([2025-11-07 18:.. 
+   .adas desde .env:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[2025-11-07 18:29:46] [INFO] Γ£à SchwabTokenManager 
+inicializado
+[2025-11-07 18:29:46] [INFO] Γ£à Credenciales cargadas desde 
+hub\apicoinbase1fullcdp_api_key.json
+[2025-11-07 18:29:46] [INFO] Γ£à CoinbaseJWTManager 
+inicializado
+[2025-11-07 18:29:46] [INFO] Γ£à Credenciales Schwab cargadas 
+desde .env
+[2025-11-07 18:29:46] [INFO] Γ£à SchwabTokenManager 
+inicializado
+[2025-11-07 18:29:46] [INFO] ≡ƒöä Token no disponible - 
+generando...
+[2025-11-07 18:29:46] [INFO] ≡ƒöä Renovando token Schwab...
+[2025-11-07 18:29:48] [INFO] Γ£à Token guardado en 
+hub\current_token.json
+[2025-11-07 18:29:48] [INFO] Γ£à Token renovado: 
+I0.b2F1dGgyLmJkYy5zY...
+[2025-11-07 18:29:48] [INFO]    V├ílido por 1800 segundos (30 
+minutos)
+[2025-11-07 18:29:48] [INFO]    Expira en: 2025-11-07 
+18:59:48.126046
+Traceback (most recent call last):
+  File "C:\Users\joser\TradePlus\tradeplus-python\debug_schwab_
+data.py", line 110, in <module>
+================================================================================
+AN├üLISIS DETALLADO: SCHWAB
+================================================================================
+
+Trades crudos de SchwabAdapter: 88
+
+RESUMEN GENERAL:
+   Total trades cargados: 88
+   Periodo: 30 dias
+
+CAPITAL:
+   Inicial: $5,000.00
+   Final: $-873.46
+   P&L USD: $-5,873.46
+   P&L %: -117.47%
+
+ESTADISTICAS:
+   Total Trades: 88
+   Winners: 0
+   Losers: 0
+   Win Rate: 40.91%
+   Avg Win: $0.00
+   Avg Loss: $0.00
+   Profit Factor: 0.85
+   Total Fees: $0.00
+    main()
+  File "C:\Users\joser\TradePlus\tradeplus-python\debug_schwab_
+data.py", line 56, in main
+    print(f"   Max Gain: ${stats.get('max_gain', 0):.2f}")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: unsupported format string passed to dict.__format__

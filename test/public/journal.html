@@ -11,6 +11,11 @@
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
   
+  <!-- Ag-Grid Community -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.1/styles/ag-grid.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.1/styles/ag-theme-alpine-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.1/dist/ag-grid-community.min.js"></script>
+  
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
@@ -141,6 +146,82 @@
       0%, 100% { opacity: 1; }
       50% { opacity: .5; }
     }
+    
+    /* Modal Ag-Grid Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(5px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal-overlay.active {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: #1e293b;
+      border: 1px solid #475569;
+      border-radius: 12px;
+      width: 95%;
+      max-width: 1400px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+    
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #475569;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .modal-body {
+      flex: 1;
+      overflow: hidden;
+      padding: 20px;
+    }
+    
+    .ag-theme-alpine-dark {
+      --ag-background-color: #1e293b;
+      --ag-header-background-color: #334155;
+      --ag-odd-row-background-color: #1e293b;
+      --ag-row-hover-color: rgba(16, 185, 129, 0.1);
+      --ag-border-color: #475569;
+      --ag-header-foreground-color: #94a3b8;
+      --ag-foreground-color: #e2e8f0;
+    }
+    
+    .modal-close-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+    
+    .modal-close-btn:hover {
+      background: #334155;
+      color: #e2e8f0;
+    }
   </style>
 </head>
 
@@ -215,20 +296,42 @@
   <!-- TAB SCHWAB -->
   <div id="tab-schwab" class="tab-content active">
     
-    <!-- KPIs Row 1 - Principales -->
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-4">
-      <div class="kpi-card text-center">
+    <!-- KPIs Row 1 - Métricas principales de P&L -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+      <div class="kpi-card text-center cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all" onclick="showAllOperations('schwab')">
         <p class="text-slate-400 text-xs uppercase tracking-widest">Total Ops</p>
         <p class="text-3xl font-bold mt-2" id="kpi-schwab-ops">-</p>
       </div>
-      <div class="kpi-card text-center">
+      <div class="kpi-card text-center cursor-pointer hover:ring-2 hover:ring-emerald-500 transition-all" onclick="showClosedOperations('schwab')">
         <p class="text-slate-400 text-xs uppercase tracking-widest">P&L Realizado</p>
         <p class="text-3xl font-bold mt-2" id="kpi-schwab-pl-realized" style="color: var(--color-emerald);">-</p>
-        <p class="text-xs text-slate-400 mt-1">(Cerradas)</p>
+        <p class="text-xs text-slate-400 mt-1" id="kpi-schwab-pl-realized-pct-sub">-</p>
       </div>
-      <div class="kpi-card text-center">
+      <div class="kpi-card text-center cursor-pointer hover:ring-2 hover:ring-amber-500 transition-all" onclick="showOpenPositions('schwab')">
         <p class="text-slate-400 text-xs uppercase tracking-widest">P&L Unrealized</p>
         <p class="text-3xl font-bold mt-2" id="kpi-schwab-pl-unrealized">-</p>
+        <p class="text-xs text-slate-400 mt-1" id="kpi-schwab-pl-unrealized-pct-sub">-</p>
+      </div>
+      <div class="kpi-card text-center cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all" onclick="showPositionsSummary('schwab')">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">Posiciones</p>
+        <p class="text-2xl font-bold mt-2">
+          <span class="gain" id="kpi-schwab-pos-closed">-</span> / 
+          <span class="text-slate-400" id="kpi-schwab-pos-open">-</span>
+        </p>
+        <p class="text-xs text-slate-400 mt-1">Cerr / Abier</p>
+      </div>
+    </div>
+    
+    <!-- KPIs Row 2 - Métricas de rendimiento -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="kpi-card text-center cursor-pointer hover:ring-2 hover:ring-emerald-500 transition-all" onclick="showClosedOperations('schwab')">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">P&L Realizado %</p>
+        <p class="text-3xl font-bold mt-2 gain" id="kpi-schwab-pl-realized-pct">-</p>
+        <p class="text-xs text-slate-400 mt-1">(Cerradas)</p>
+      </div>
+      <div class="kpi-card text-center cursor-pointer hover:ring-2 hover:ring-amber-500 transition-all" onclick="showOpenPositions('schwab')">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">P&L Unrealized %</p>
+        <p class="text-3xl font-bold mt-2" id="kpi-schwab-pl-unrealized-pct">-</p>
         <p class="text-xs text-slate-400 mt-1">(Abiertas)</p>
       </div>
       <div class="kpi-card text-center">
@@ -238,14 +341,6 @@
       <div class="kpi-card text-center">
         <p class="text-slate-400 text-xs uppercase tracking-widest">Profit Factor</p>
         <p class="text-3xl font-bold mt-2" id="kpi-schwab-pf">-</p>
-      </div>
-      <div class="kpi-card text-center">
-        <p class="text-slate-400 text-xs uppercase tracking-widest">Posiciones</p>
-        <p class="text-2xl font-bold mt-2">
-          <span class="gain" id="kpi-schwab-pos-closed">-</span> / 
-          <span class="text-slate-400" id="kpi-schwab-pos-open">-</span>
-        </p>
-        <p class="text-xs text-slate-400 mt-1">Cerr / Abier</p>
       </div>
     </div>
     
@@ -330,22 +425,45 @@
 
   </div>
 
-  <!-- TAB COINBASE (Estructura idéntica) -->
+  <!-- TAB COINBASE -->
   <div id="tab-coinbase" class="tab-content">
     
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-4">
-      <div class="kpi-card text-center">
+    <!-- KPIs Row 1 - Métricas principales de P&L -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+      <div class="kpi-card text-center cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all" onclick="showAllOperations('coinbase')">
         <p class="text-slate-400 text-xs uppercase tracking-widest">Total Ops</p>
         <p class="text-3xl font-bold mt-2" id="kpi-coinbase-ops">-</p>
       </div>
-      <div class="kpi-card text-center">
+      <div class="kpi-card text-center cursor-pointer hover:ring-2 hover:ring-emerald-500 transition-all" onclick="showClosedOperations('coinbase')">
         <p class="text-slate-400 text-xs uppercase tracking-widest">P&L Realizado</p>
         <p class="text-3xl font-bold mt-2" id="kpi-coinbase-pl-realized" style="color: var(--color-emerald);">-</p>
-        <p class="text-xs text-slate-400 mt-1">(Cerradas)</p>
+        <p class="text-xs text-slate-400 mt-1" id="kpi-coinbase-pl-realized-pct-sub">-</p>
       </div>
-      <div class="kpi-card text-center">
+      <div class="kpi-card text-center cursor-pointer hover:ring-2 hover:ring-amber-500 transition-all" onclick="showOpenPositions('coinbase')">
         <p class="text-slate-400 text-xs uppercase tracking-widest">P&L Unrealized</p>
         <p class="text-3xl font-bold mt-2" id="kpi-coinbase-pl-unrealized">-</p>
+        <p class="text-xs text-slate-400 mt-1" id="kpi-coinbase-pl-unrealized-pct-sub">-</p>
+      </div>
+      <div class="kpi-card text-center cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all" onclick="showPositionsSummary('coinbase')">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">Posiciones</p>
+        <p class="text-2xl font-bold mt-2">
+          <span class="gain" id="kpi-coinbase-pos-closed">-</span> / 
+          <span class="text-slate-400" id="kpi-coinbase-pos-open">-</span>
+        </p>
+        <p class="text-xs text-slate-400 mt-1">Cerr / Abier</p>
+      </div>
+    </div>
+    
+    <!-- KPIs Row 2 - Métricas de rendimiento -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="kpi-card text-center cursor-pointer hover:ring-2 hover:ring-emerald-500 transition-all" onclick="showClosedOperations('coinbase')">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">P&L Realizado %</p>
+        <p class="text-3xl font-bold mt-2 gain" id="kpi-coinbase-pl-realized-pct">-</p>
+        <p class="text-xs text-slate-400 mt-1">(Cerradas)</p>
+      </div>
+      <div class="kpi-card text-center cursor-pointer hover:ring-2 hover:ring-amber-500 transition-all" onclick="showOpenPositions('coinbase')">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">P&L Unrealized %</p>
+        <p class="text-3xl font-bold mt-2" id="kpi-coinbase-pl-unrealized-pct">-</p>
         <p class="text-xs text-slate-400 mt-1">(Abiertas)</p>
       </div>
       <div class="kpi-card text-center">
@@ -355,14 +473,6 @@
       <div class="kpi-card text-center">
         <p class="text-slate-400 text-xs uppercase tracking-widest">Profit Factor</p>
         <p class="text-3xl font-bold mt-2" id="kpi-coinbase-pf">-</p>
-      </div>
-      <div class="kpi-card text-center">
-        <p class="text-slate-400 text-xs uppercase tracking-widest">Posiciones</p>
-        <p class="text-2xl font-bold mt-2">
-          <span class="gain" id="kpi-coinbase-pos-closed">-</span> / 
-          <span class="text-slate-400" id="kpi-coinbase-pos-open">-</span>
-        </p>
-        <p class="text-xs text-slate-400 mt-1">Cerr / Abier</p>
       </div>
     </div>
     
@@ -448,19 +558,42 @@
   <!-- TAB ALL (TODOS) -->
   <div id="tab-all" class="tab-content">
     
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-4">
-      <div class="kpi-card text-center">
+    <!-- KPIs Row 1 - Métricas principales de P&L -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+      <div class="kpi-card text-center cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all" onclick="showAllOperations('all')">
         <p class="text-slate-400 text-xs uppercase tracking-widest">Total Ops</p>
         <p class="text-3xl font-bold mt-2" id="kpi-all-ops">-</p>
       </div>
-      <div class="kpi-card text-center">
+      <div class="kpi-card text-center cursor-pointer hover:ring-2 hover:ring-emerald-500 transition-all" onclick="showClosedOperations('all')">
         <p class="text-slate-400 text-xs uppercase tracking-widest">P&L Realizado</p>
         <p class="text-3xl font-bold mt-2" id="kpi-all-pl-realized" style="color: var(--color-emerald);">-</p>
-        <p class="text-xs text-slate-400 mt-1">(Cerradas)</p>
+        <p class="text-xs text-slate-400 mt-1" id="kpi-all-pl-realized-pct-sub">-</p>
       </div>
-      <div class="kpi-card text-center">
+      <div class="kpi-card text-center cursor-pointer hover:ring-2 hover:ring-amber-500 transition-all" onclick="showOpenPositions('all')">
         <p class="text-slate-400 text-xs uppercase tracking-widest">P&L Unrealized</p>
         <p class="text-3xl font-bold mt-2" id="kpi-all-pl-unrealized">-</p>
+        <p class="text-xs text-slate-400 mt-1" id="kpi-all-pl-unrealized-pct-sub">-</p>
+      </div>
+      <div class="kpi-card text-center cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all" onclick="showPositionsSummary('all')">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">Posiciones</p>
+        <p class="text-2xl font-bold mt-2">
+          <span class="gain" id="kpi-all-pos-closed">-</span> / 
+          <span class="text-slate-400" id="kpi-all-pos-open">-</span>
+        </p>
+        <p class="text-xs text-slate-400 mt-1">Cerr / Abier</p>
+      </div>
+    </div>
+    
+    <!-- KPIs Row 2 - Métricas de rendimiento -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="kpi-card text-center cursor-pointer hover:ring-2 hover:ring-emerald-500 transition-all" onclick="showClosedOperations('all')">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">P&L Realizado %</p>
+        <p class="text-3xl font-bold mt-2 gain" id="kpi-all-pl-realized-pct">-</p>
+        <p class="text-xs text-slate-400 mt-1">(Cerradas)</p>
+      </div>
+      <div class="kpi-card text-center cursor-pointer hover:ring-2 hover:ring-amber-500 transition-all" onclick="showOpenPositions('all')">
+        <p class="text-slate-400 text-xs uppercase tracking-widest">P&L Unrealized %</p>
+        <p class="text-3xl font-bold mt-2" id="kpi-all-pl-unrealized-pct">-</p>
         <p class="text-xs text-slate-400 mt-1">(Abiertas)</p>
       </div>
       <div class="kpi-card text-center">
@@ -470,14 +603,6 @@
       <div class="kpi-card text-center">
         <p class="text-slate-400 text-xs uppercase tracking-widest">Profit Factor</p>
         <p class="text-3xl font-bold mt-2" id="kpi-all-pf">-</p>
-      </div>
-      <div class="kpi-card text-center">
-        <p class="text-slate-400 text-xs uppercase tracking-widest">Posiciones</p>
-        <p class="text-2xl font-bold mt-2">
-          <span class="gain" id="kpi-all-pos-closed">-</span> / 
-          <span class="text-slate-400" id="kpi-all-pos-open">-</span>
-        </p>
-        <p class="text-xs text-slate-400 mt-1">Cerr / Abier</p>
       </div>
     </div>
     
@@ -572,6 +697,84 @@
   let currentDays = 30;  // Default 30 días
   let ws = null;  // WebSocket connection
   let currentBroker = 'schwab';  // Broker activo
+
+  // ========================================================================
+  // FORMATEO CENTRALIZADO DE NÚMEROS
+  // ========================================================================
+  
+  /**
+   * Formatea un número con separador de miles (coma) y decimales (punto)
+   * @param {number} value - Valor a formatear
+   * @param {number} decimals - Número de decimales (default: 2)
+   * @param {boolean} includeSign - Si incluir signo + para positivos
+   * @returns {string} - Número formateado: "1,234.56" o "+1,234.56"
+   */
+  function formatNumber(value, decimals = 2, includeSign = false) {
+    const sign = includeSign && value >= 0 ? '+' : '';
+    return sign + value.toLocaleString('en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals
+    });
+  }
+
+  /**
+   * Formatea un monto en USD con símbolo $
+   * @param {number} value - Valor a formatear
+   * @param {number} decimals - Número de decimales (default: 2)
+   * @param {boolean} includeSign - Si incluir signo + para positivos
+   * @returns {string} - "$1,234.56" o "+$1,234.56"
+   */
+  function formatUSD(value, decimals = 2, includeSign = false) {
+    const sign = includeSign && value >= 0 ? '+' : '';
+    const absValue = Math.abs(value);
+    return sign + '$' + absValue.toLocaleString('en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals
+    });
+  }
+
+  /**
+   * Formatea un porcentaje con símbolo %
+   * @param {number} value - Valor del porcentaje
+   * @param {number} decimals - Número de decimales (default: 2)
+   * @param {boolean} includeSign - Si incluir signo + para positivos
+   * @returns {string} - "12.34%" o "+12.34%"
+   */
+  function formatPercent(value, decimals = 2, includeSign = true) {
+    const sign = includeSign && value >= 0 ? '+' : '';
+    return sign + value.toFixed(decimals) + '%';
+  }
+
+  /**
+   * Determina el número de decimales correcto para un símbolo crypto
+   * @param {string} symbol - Símbolo del producto (ej: "BTC-USD")
+   * @returns {number} - Número de decimales (2-8)
+   */
+  function getDecimalsForSymbol(symbol) {
+    // Stocks (Schwab): siempre 2 decimales
+    if (!symbol.includes('-USD')) {
+      return 2;
+    }
+    
+    // Crypto (Coinbase): depende del token
+    // Tokens principales: 2 decimales
+    if (['BTC-USD', 'ETH-USD', 'SOL-USD', 'BNB-USD'].includes(symbol)) {
+      return 2;
+    }
+    
+    // Tokens de precio medio: 4 decimales
+    if (['ADA-USD', 'DOT-USD', 'MATIC-USD'].includes(symbol)) {
+      return 4;
+    }
+    
+    // Tokens pequeños: 6-8 decimales
+    if (['SHIB-USD', 'PEPE-USD', 'FLOKI-USD'].includes(symbol)) {
+      return 8;
+    }
+    
+    // Default: 4 decimales para crypto desconocido
+    return 4;
+  }
 
   // ========================================================================
   // WEBSOCKET CONNECTION
@@ -714,62 +917,42 @@
       return;
     }
     
-    // AGRUPAR POR SÍMBOLO
-    const grouped = {};
-    positions.forEach(pos => {
-      if (!grouped[pos.symbol]) {
-        grouped[pos.symbol] = {
-          symbol: pos.symbol,
-          side: pos.side,
-          qty: 0,
-          total_cost: 0,
-          total_value: 0,
-          unrealized_pl: 0
-        };
-      }
-      grouped[pos.symbol].qty += pos.qty;
-      grouped[pos.symbol].total_cost += pos.avg_cost * pos.qty;
-      grouped[pos.symbol].total_value += pos.current_value;
-      grouped[pos.symbol].unrealized_pl += pos.unrealized_pl || 0;
-    });
-    
-    // Convertir a array y calcular promedios
-    const groupedPositions = Object.values(grouped).map(pos => ({
-      ...pos,
-      avg_cost: pos.total_cost / pos.qty,
-      pl_percent: ((pos.unrealized_pl / pos.total_cost) * 100) || 0
-    }));
-    
-    container.innerHTML = groupedPositions.map(pos => {
-      const pl = pos.unrealized_pl;
+    // El backend YA agrupa por símbolo, solo renderizar con formateo centralizado
+    container.innerHTML = positions.map(pos => {
+      const pl = pos.unrealized_pl || 0;
+      const plPct = pos.unrealized_percent || 0;
       const plClass = pl >= 0 ? 'gain' : 'loss';
-      const plSign = pl >= 0 ? '+' : '';
-      const plPctClass = pos.pl_percent >= 0 ? 'gain' : 'loss';
+      // Determinar decimales: si es crypto (Coinbase), usar getDecimalsForSymbol, si no 2
+      const decimals = pos.symbol.includes('-USD') ? getDecimalsForSymbol(pos.symbol) : 2;
       
       return `
         <div class="kpi-card">
           <div class="flex justify-between items-start mb-2">
             <span class="font-bold text-xl text-emerald-400">${pos.symbol}</span>
-            <span class="text-xs px-2 py-1 rounded ${pos.side === 'LONG' ? 'bg-emerald-900/30 text-emerald-400' : 'bg-red-900/30 text-red-400'}">
-              ${pos.side}
+            <span class="text-xs px-2 py-1 rounded bg-blue-900/30 text-blue-400">
+              LONG
             </span>
           </div>
           <div class="text-sm text-slate-400 space-y-1">
             <div class="flex justify-between">
-              <span>Cantidad Total:</span>
-              <span class="font-bold text-white">${pos.qty.toFixed(0)} shares</span>
+              <span>Cantidad:</span>
+              <span class="font-bold text-white">${formatNumber(pos.qty, 4, false)} ${pos.symbol.includes('-USD') ? 'units' : 'shares'}</span>
             </div>
             <div class="flex justify-between">
-              <span>Precio Promedio:</span>
-              <span class="font-bold text-white">$${pos.avg_cost.toFixed(2)}</span>
+              <span>Avg Cost:</span>
+              <span class="font-bold text-white">${formatUSD(pos.avg_cost, decimals, false)}</span>
             </div>
             <div class="flex justify-between">
-              <span>Costo Total:</span>
-              <span class="font-bold text-white">$${pos.total_cost.toFixed(2)}</span>
+              <span>Current:</span>
+              <span class="font-bold text-white">${formatUSD(pos.current_price, decimals, false)}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Cost Basis:</span>
+              <span class="font-bold text-white">${formatUSD(pos.cost_basis, 2, false)}</span>
             </div>
             <div class="flex justify-between pt-2 border-t border-slate-600">
               <span>P&L Unrealized:</span>
-              <span class="font-bold ${plClass}">${plSign}$${Math.abs(pl).toFixed(2)} (${plSign}${pos.pl_percent.toFixed(2)}%)</span>
+              <span class="font-bold ${plClass}">${formatUSD(pl, 2, true)} (${formatPercent(plPct, 2, true)})</span>
             </div>
           </div>
         </div>
@@ -794,18 +977,59 @@
     // Total Ops = operaciones (no trades individuales)
     document.getElementById(`kpi-${broker}-ops`).textContent = stats.total_ops || 0;
     
-    // P&L Realizado vs Unrealized - USAR CAMPOS _usd
+    // P&L Realizado vs Unrealized - USAR CAMPOS _usd Y % con formateo centralizado
     const plRealized = stats.pl_realized_usd || 0;
+    const plRealizedPct = stats.pl_realized_percent || 0;
     const plUnrealized = stats.pl_unrealized_usd || 0;
+    const plUnrealizedPct = stats.pl_unrealized_percent || 0;
     
-    document.getElementById(`kpi-${broker}-pl-realized`).textContent = `${plRealized >= 0 ? '+' : ''}$${Math.abs(plRealized).toFixed(2)}`;
+    // Row 1: P&L USD con formateo (signo + comas separador de miles)
+    document.getElementById(`kpi-${broker}-pl-realized`).textContent = formatUSD(plRealized, 2, true);
     document.getElementById(`kpi-${broker}-pl-realized`).className = `text-3xl font-bold mt-2 ${plRealized >= 0 ? 'gain' : 'loss'}`;
     
-    document.getElementById(`kpi-${broker}-pl-unrealized`).textContent = `${plUnrealized >= 0 ? '+' : ''}$${Math.abs(plUnrealized).toFixed(2)}`;
+    // Actualizar el texto de porcentaje de P&L Realizado
+    const plRealizedSubtext = document.querySelector(`#kpi-${broker}-pl-realized`).nextElementSibling;
+    if (plRealizedSubtext) {
+      plRealizedSubtext.textContent = `${formatPercent(plRealizedPct, 2, true)} (Cerradas)`;
+    }
+    
+    document.getElementById(`kpi-${broker}-pl-unrealized`).textContent = formatUSD(plUnrealized, 2, true);
     document.getElementById(`kpi-${broker}-pl-unrealized`).className = `text-3xl font-bold mt-2 ${plUnrealized >= 0 ? 'gain' : (plUnrealized < 0 ? 'loss' : 'text-slate-400')}`;
     
-    document.getElementById(`kpi-${broker}-wr`).textContent = `${(stats.win_rate || 0).toFixed(2)}%`;
-    document.getElementById(`kpi-${broker}-pf`).textContent = (stats.profit_factor || 0).toFixed(2);
+    // Actualizar el texto de porcentaje de P&L Unrealized
+    const plUnrealizedSubtext = document.querySelector(`#kpi-${broker}-pl-unrealized`).nextElementSibling;
+    if (plUnrealizedSubtext) {
+      plUnrealizedSubtext.textContent = `${formatPercent(plUnrealizedPct, 2, true)} (Abiertas)`;
+    }
+    
+    // Actualizar subtextos de porcentaje en Row 1 (debajo de P&L USD)
+    const plRealizedPctSub = document.getElementById(`kpi-${broker}-pl-realized-pct-sub`);
+    if (plRealizedPctSub) {
+      plRealizedPctSub.textContent = `${formatPercent(plRealizedPct, 2, true)} (Cerradas)`;
+      plRealizedPctSub.className = `text-xs mt-1 ${plRealizedPct >= 0 ? 'gain' : 'loss'}`;
+    }
+    
+    const plUnrealizedPctSub = document.getElementById(`kpi-${broker}-pl-unrealized-pct-sub`);
+    if (plUnrealizedPctSub) {
+      plUnrealizedPctSub.textContent = `${formatPercent(plUnrealizedPct, 2, true)} (Abiertas)`;
+      plUnrealizedPctSub.className = `text-xs mt-1 ${plUnrealizedPct >= 0 ? 'gain' : 'loss'}`;
+    }
+    
+    // NUEVOS KPIs Row 2: P&L % como tarjetas principales
+    const plRealizedPctElement = document.getElementById(`kpi-${broker}-pl-realized-pct`);
+    if (plRealizedPctElement) {
+      plRealizedPctElement.textContent = formatPercent(plRealizedPct, 2, true);
+      plRealizedPctElement.className = `text-3xl font-bold mt-2 ${plRealizedPct >= 0 ? 'gain' : 'loss'}`;
+    }
+    
+    const plUnrealizedPctElement = document.getElementById(`kpi-${broker}-pl-unrealized-pct`);
+    if (plUnrealizedPctElement) {
+      plUnrealizedPctElement.textContent = formatPercent(plUnrealizedPct, 2, true);
+      plUnrealizedPctElement.className = `text-3xl font-bold mt-2 ${plUnrealizedPct >= 0 ? 'gain' : (plUnrealizedPct < 0 ? 'loss' : 'text-slate-400')}`;
+    }
+    
+    document.getElementById(`kpi-${broker}-wr`).textContent = formatPercent(stats.win_rate || 0, 2, false);
+    document.getElementById(`kpi-${broker}-pf`).textContent = formatNumber(stats.profit_factor || 0, 2, false);
     
     // Posiciones abiertas/cerradas - USAR positions del API
     const posClosed = positions.closed_count || 0;
@@ -817,13 +1041,13 @@
     const tradesCount = data.period?.trades_count || data.trades?.length || 0;
     document.getElementById(`count-${broker}`).textContent = tradesCount;
     
-    // Renderizar posiciones abiertas
-    renderOpenPositions(data.positions?.open || [], broker);
+    // Renderizar posiciones abiertas - USAR open_detail
+    renderOpenPositions(data.positions?.open_detail || [], broker);
 
-    // Capital
+    // Capital - usar formateo centralizado
     const capital = data.capital || {};
     const currentCapital = capital.current || 5000;
-    document.getElementById(`capital-actual-${broker}`).textContent = `$${currentCapital.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    document.getElementById(`capital-actual-${broker}`).textContent = formatUSD(currentCapital, 2, false);
     
     const progressPct = Math.min(((currentCapital) / 25000) * 100, 100);
     document.getElementById(`progress-pct-${broker}`).textContent = `${progressPct.toFixed(1)}%`;
@@ -1152,10 +1376,21 @@
     
     trades.forEach(t => {
       if (!symbolPL[t.symbol]) {
-        symbolPL[t.symbol] = { pl_usd: 0, trades: 0 };
+        symbolPL[t.symbol] = { pl_usd: 0, pl_percent: 0, cost_basis: 0, trades: 0 };
       }
       symbolPL[t.symbol].pl_usd += (t.pl_usd || 0);
+      
+      // Calcular P&L % acumulado: necesitamos sumar cost_basis y P&L USD
+      const tradeCost = Math.abs(t.price * t.quantity);
+      symbolPL[t.symbol].cost_basis += tradeCost;
       symbolPL[t.symbol].trades += 1;
+    });
+
+    // Calcular P&L % total para cada símbolo
+    Object.values(symbolPL).forEach(stats => {
+      if (stats.cost_basis > 0) {
+        stats.pl_percent = (stats.pl_usd / stats.cost_basis) * 100;
+      }
     });
 
     const sorted = Object.entries(symbolPL)
@@ -1175,7 +1410,10 @@
             <span class="font-bold">${w.symbol}</span>
             <p class="text-xs text-slate-400">${w.trades} ops</p>
           </div>
-          <span class="gain text-lg">+$${Math.abs(w.pl_usd).toFixed(2)}</span>
+          <div class="text-right">
+            <span class="gain text-lg">+$${Math.abs(w.pl_usd).toFixed(2)}</span>
+            <p class="text-xs gain">+${w.pl_percent.toFixed(2)}%</p>
+          </div>
         </div>
       `).join('');
     }
@@ -1187,7 +1425,10 @@
             <span class="font-bold">${l.symbol}</span>
             <p class="text-xs text-slate-400">${l.trades} ops</p>
           </div>
-          <span class="loss text-lg">-$${Math.abs(l.pl_usd).toFixed(2)}</span>
+          <div class="text-right">
+            <span class="loss text-lg">-$${Math.abs(l.pl_usd).toFixed(2)}</span>
+            <p class="text-xs loss">${l.pl_percent.toFixed(2)}%</p>
+          </div>
         </div>
       `).join('');
     }
@@ -1211,12 +1452,433 @@
     requestData();  // Usar WebSocket
   }
 
+  // ========================================================================
+  // AG-GRID MODAL FUNCTIONS
+  // ========================================================================
+  
+  let gridApi = null;
+
+  function showAgGridModal(rowData, columnDefs, title) {
+    const modal = document.getElementById('ag-grid-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const container = document.getElementById('ag-grid-container');
+    
+    // Configurar título
+    modalTitle.textContent = title;
+    
+    // Limpiar grid anterior
+    container.innerHTML = '';
+    
+    // Configuración de Ag-Grid
+    const gridOptions = {
+      columnDefs: columnDefs,
+      rowData: rowData,
+      defaultColDef: {
+        sortable: true,
+        filter: true,
+        resizable: true,
+        flex: 1,
+        minWidth: 100
+      },
+      pagination: true,
+      paginationPageSize: 20,
+      enableCellTextSelection: true,
+      ensureDomOrder: true,
+      animateRows: true,
+      domLayout: 'normal'
+    };
+    
+    // Crear grid
+    gridApi = agGrid.createGrid(container, gridOptions);
+    
+    // Mostrar modal
+    modal.classList.add('active');
+  }
+
+  function closeAgGridModal() {
+    const modal = document.getElementById('ag-grid-modal');
+    modal.classList.remove('active');
+    if (gridApi) {
+      gridApi.destroy();
+      gridApi = null;
+    }
+    // Destruir grids del modal de posiciones si existen
+    if (window.closedGridApi) {
+      window.closedGridApi.destroy();
+      window.closedGridApi = null;
+    }
+    if (window.openGridApi) {
+      window.openGridApi.destroy();
+      window.openGridApi = null;
+    }
+  }
+
+  // ========================================================================
+  // CLICK HANDLERS - OPERACIONES CERRADAS
+  // ========================================================================
+
+  function showClosedOperations(broker) {
+    const data = broker === 'schwab' ? schwabData : (broker === 'coinbase' ? coinbaseData : allData);
+    if (!data || !data.trades) return;
+
+    // Filtrar operaciones cerradas (pl_usd !== 0)
+    const closedTrades = data.trades.filter(t => t.pl_usd && t.pl_usd !== 0);
+
+    const columnDefs = [
+      { field: 'datetime', headerName: 'Fecha', valueFormatter: p => new Date(p.value).toLocaleString('es-ES') },
+      { field: 'symbol', headerName: 'Símbolo' },
+      { field: 'side', headerName: 'Lado' },
+      { field: 'quantity', headerName: 'Cantidad', type: 'numericColumn', valueFormatter: p => formatNumber(parseFloat(p.value), 4, false) },
+      { 
+        field: 'price', 
+        headerName: 'Precio', 
+        type: 'numericColumn', 
+        valueFormatter: p => {
+          const symbol = p.data.symbol || '';
+          const decimals = symbol.includes('-USD') ? getDecimalsForSymbol(symbol) : 2;
+          return formatUSD(parseFloat(p.value), decimals, false);
+        }
+      },
+      { field: 'fee', headerName: 'Fee', type: 'numericColumn', valueFormatter: p => formatUSD(parseFloat(p.value), 2, false) },
+      { 
+        field: 'pl_usd', 
+        headerName: 'P&L USD', 
+        type: 'numericColumn',
+        valueFormatter: p => formatUSD(p.value, 2, true),
+        cellStyle: p => ({ color: p.value >= 0 ? '#10b981' : '#ef4444' })
+      },
+      { 
+        field: 'pl_percent', 
+        headerName: 'P&L %', 
+        type: 'numericColumn',
+        valueFormatter: p => formatPercent(p.value, 2, true),
+        cellStyle: p => ({ color: p.value >= 0 ? '#10b981' : '#ef4444' })
+      }
+    ];
+
+    const brokerName = broker === 'schwab' ? 'Schwab' : (broker === 'coinbase' ? 'Coinbase' : 'Todos los Brokers');
+    showAgGridModal(closedTrades, columnDefs, `📊 Operaciones Cerradas - ${brokerName} (${closedTrades.length} ops)`);
+  }
+
+  // ========================================================================
+  // CLICK HANDLERS - TODAS LAS OPERACIONES
+  // ========================================================================
+
+  function showAllOperations(broker) {
+    const data = broker === 'schwab' ? schwabData : (broker === 'coinbase' ? coinbaseData : allData);
+    if (!data || !data.trades) return;
+
+    const columnDefs = [
+      { field: 'datetime', headerName: 'Fecha', valueFormatter: p => new Date(p.value).toLocaleString('es-ES') },
+      { field: 'symbol', headerName: 'Símbolo' },
+      { field: 'side', headerName: 'Lado' },
+      { field: 'quantity', headerName: 'Cantidad', type: 'numericColumn', valueFormatter: p => formatNumber(parseFloat(p.value), 4, false) },
+      { 
+        field: 'price', 
+        headerName: 'Precio', 
+        type: 'numericColumn', 
+        valueFormatter: p => {
+          const symbol = p.data.symbol || '';
+          const decimals = symbol.includes('-USD') ? getDecimalsForSymbol(symbol) : 2;
+          return formatUSD(parseFloat(p.value), decimals, false);
+        }
+      },
+      { field: 'fee', headerName: 'Fee', type: 'numericColumn', valueFormatter: p => formatUSD(parseFloat(p.value), 2, false) },
+      { 
+        field: 'pl_usd', 
+        headerName: 'P&L USD', 
+        type: 'numericColumn',
+        valueFormatter: p => p.value === 0 ? 'Abierta' : formatUSD(p.value, 2, true),
+        cellStyle: p => {
+          if (p.value === 0) return { color: '#94a3b8' };
+          return { color: p.value >= 0 ? '#10b981' : '#ef4444' };
+        }
+      },
+      { 
+        field: 'pl_percent', 
+        headerName: 'P&L %', 
+        type: 'numericColumn',
+        valueFormatter: p => p.value === 0 ? '-' : formatPercent(p.value, 2, true),
+        cellStyle: p => {
+          if (p.value === 0) return { color: '#94a3b8' };
+          return { color: p.value >= 0 ? '#10b981' : '#ef4444' };
+        }
+      }
+    ];
+
+    const brokerName = broker === 'schwab' ? 'Schwab' : (broker === 'coinbase' ? 'Coinbase' : 'Todos los Brokers');
+    showAgGridModal(data.trades, columnDefs, `📋 Todas las Operaciones - ${brokerName} (${data.trades.length} trades)`);
+  }
+
+  // ========================================================================
+  // CLICK HANDLER - RESUMEN DE POSICIONES (CERRADAS + ABIERTAS CON TABS)
+  // ========================================================================
+
+  function showPositionsSummary(broker) {
+    const data = broker === 'schwab' ? schwabData : (broker === 'coinbase' ? coinbaseData : allData);
+    if (!data) return;
+
+    const closedTrades = data.trades ? data.trades.filter(t => t.pl_usd && t.pl_usd !== 0) : [];
+    const openPos = data.positions?.open_detail || [];
+    
+    const brokerName = broker === 'schwab' ? 'Schwab' : (broker === 'coinbase' ? 'Coinbase' : 'Todos los Brokers');
+    
+    // Crear modal personalizado con tabs
+    const modal = document.getElementById('ag-grid-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const container = document.getElementById('ag-grid-container');
+    
+    modalTitle.textContent = `📊 Resumen de Posiciones - ${brokerName}`;
+    
+    // HTML personalizado con tabs
+    container.innerHTML = `
+      <div style="height: 100%; display: flex; flex-direction: column;">
+        <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #475569; padding-bottom: 10px;">
+          <button id="tab-closed-btn" onclick="switchPositionsTab('closed')" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s;">
+            ✅ Cerradas (${closedTrades.length})
+          </button>
+          <button id="tab-open-btn" onclick="switchPositionsTab('open')" style="padding: 10px 20px; background: #334155; color: #94a3b8; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s;">
+            📈 Abiertas (${openPos.length})
+          </button>
+        </div>
+        <div id="positions-grid-closed" class="ag-theme-alpine-dark" style="flex: 1; display: block;"></div>
+        <div id="positions-grid-open" class="ag-theme-alpine-dark" style="flex: 1; display: none;"></div>
+      </div>
+    `;
+    
+    // Configurar grid de cerradas con formateo centralizado
+    const closedColumnDefs = [
+      { field: 'datetime', headerName: 'Fecha', valueFormatter: p => new Date(p.value).toLocaleString('es-ES') },
+      { field: 'symbol', headerName: 'Símbolo' },
+      { field: 'side', headerName: 'Lado' },
+      { field: 'quantity', headerName: 'Cantidad', type: 'numericColumn', valueFormatter: p => formatNumber(parseFloat(p.value), 4, false) },
+      { 
+        field: 'price', 
+        headerName: 'Precio', 
+        type: 'numericColumn', 
+        valueFormatter: p => {
+          const symbol = p.data.symbol || '';
+          const decimals = symbol.includes('-USD') ? getDecimalsForSymbol(symbol) : 2;
+          return formatUSD(parseFloat(p.value), decimals, false);
+        }
+      },
+      { field: 'fee', headerName: 'Fee', type: 'numericColumn', valueFormatter: p => formatUSD(parseFloat(p.value), 2, false) },
+      { 
+        field: 'pl_usd', 
+        headerName: 'P&L USD', 
+        type: 'numericColumn',
+        valueFormatter: p => formatUSD(p.value, 2, true),
+        cellStyle: p => ({ color: p.value >= 0 ? '#10b981' : '#ef4444' })
+      },
+      { 
+        field: 'pl_percent', 
+        headerName: 'P&L %', 
+        type: 'numericColumn',
+        valueFormatter: p => formatPercent(p.value, 2, true),
+        cellStyle: p => ({ color: p.value >= 0 ? '#10b981' : '#ef4444' })
+      }
+    ];
+    
+    const closedGridOptions = {
+      columnDefs: closedColumnDefs,
+      rowData: closedTrades,
+      defaultColDef: {
+        sortable: true,
+        filter: true,
+        resizable: true,
+        flex: 1,
+        minWidth: 100
+      },
+      pagination: true,
+      paginationPageSize: 20,
+      enableCellTextSelection: true,
+      ensureDomOrder: true,
+      animateRows: true,
+      domLayout: 'normal'
+    };
+    
+    // Configurar grid de abiertas con formateo centralizado
+    const openColumnDefs = [
+      { field: 'symbol', headerName: 'Símbolo' },
+      { field: 'qty', headerName: 'Cantidad', type: 'numericColumn', valueFormatter: p => formatNumber(parseFloat(p.value), 4, false) },
+      { 
+        field: 'avg_cost', 
+        headerName: 'Costo Prom.', 
+        type: 'numericColumn', 
+        valueFormatter: p => {
+          const symbol = p.data.symbol || '';
+          const decimals = symbol.includes('-USD') ? getDecimalsForSymbol(symbol) : 2;
+          return formatUSD(p.value, decimals, false);
+        }
+      },
+      { 
+        field: 'current_price', 
+        headerName: 'Precio Actual', 
+        type: 'numericColumn', 
+        valueFormatter: p => {
+          const symbol = p.data.symbol || '';
+          const decimals = symbol.includes('-USD') ? getDecimalsForSymbol(symbol) : 2;
+          return formatUSD(p.value, decimals, false);
+        }
+      },
+      { field: 'cost_basis', headerName: 'Base de Costo', type: 'numericColumn', valueFormatter: p => formatUSD(p.value, 2, false) },
+      { field: 'current_value', headerName: 'Valor Actual', type: 'numericColumn', valueFormatter: p => formatUSD(p.value, 2, false) },
+      { 
+        field: 'unrealized_pl', 
+        headerName: 'P&L USD', 
+        type: 'numericColumn',
+        valueFormatter: p => formatUSD(p.value, 2, true),
+        cellStyle: p => ({ color: p.value >= 0 ? '#10b981' : '#ef4444' })
+      },
+      { 
+        field: 'unrealized_percent', 
+        headerName: 'P&L %', 
+        type: 'numericColumn',
+        valueFormatter: p => formatPercent(p.value, 2, true),
+        cellStyle: p => ({ color: p.value >= 0 ? '#10b981' : '#ef4444' })
+      },
+      { field: 'entries', headerName: 'Entradas', type: 'numericColumn' }
+    ];
+    
+    const openGridOptions = {
+      columnDefs: openColumnDefs,
+      rowData: openPos,
+      defaultColDef: {
+        sortable: true,
+        filter: true,
+        resizable: true,
+        flex: 1,
+        minWidth: 100
+      },
+      pagination: true,
+      paginationPageSize: 20,
+      enableCellTextSelection: true,
+      ensureDomOrder: true,
+      animateRows: true,
+      domLayout: 'normal'
+    };
+    
+    // Crear ambos grids
+    window.closedGridApi = agGrid.createGrid(document.getElementById('positions-grid-closed'), closedGridOptions);
+    window.openGridApi = agGrid.createGrid(document.getElementById('positions-grid-open'), openGridOptions);
+    
+    // Mostrar modal
+    modal.classList.add('active');
+  }
+
+  // Función para cambiar entre tabs del modal de posiciones
+  window.switchPositionsTab = function(tab) {
+    const closedBtn = document.getElementById('tab-closed-btn');
+    const openBtn = document.getElementById('tab-open-btn');
+    const closedGrid = document.getElementById('positions-grid-closed');
+    const openGrid = document.getElementById('positions-grid-open');
+    
+    if (tab === 'closed') {
+      closedBtn.style.background = '#10b981';
+      closedBtn.style.color = 'white';
+      openBtn.style.background = '#334155';
+      openBtn.style.color = '#94a3b8';
+      closedGrid.style.display = 'block';
+      openGrid.style.display = 'none';
+    } else {
+      closedBtn.style.background = '#334155';
+      closedBtn.style.color = '#94a3b8';
+      openBtn.style.background = '#f59e0b';
+      openBtn.style.color = 'white';
+      closedGrid.style.display = 'none';
+      openGrid.style.display = 'block';
+    }
+  };
+
+  // ========================================================================
+  // CLICK HANDLERS - POSICIONES ABIERTAS
+  // ========================================================================
+
+  function showOpenPositions(broker) {
+    const data = broker === 'schwab' ? schwabData : (broker === 'coinbase' ? coinbaseData : allData);
+    if (!data || !data.positions || !data.positions.open_detail) return;
+
+    const openPos = data.positions.open_detail;
+
+    const columnDefs = [
+      { field: 'symbol', headerName: 'Símbolo' },
+      { field: 'qty', headerName: 'Cantidad', type: 'numericColumn', valueFormatter: p => formatNumber(parseFloat(p.value), 4, false) },
+      { 
+        field: 'avg_cost', 
+        headerName: 'Costo Prom.', 
+        type: 'numericColumn', 
+        valueFormatter: p => {
+          const symbol = p.data.symbol || '';
+          const decimals = symbol.includes('-USD') ? getDecimalsForSymbol(symbol) : 2;
+          return formatUSD(p.value, decimals, false);
+        }
+      },
+      { 
+        field: 'current_price', 
+        headerName: 'Precio Actual', 
+        type: 'numericColumn', 
+        valueFormatter: p => {
+          const symbol = p.data.symbol || '';
+          const decimals = symbol.includes('-USD') ? getDecimalsForSymbol(symbol) : 2;
+          return formatUSD(p.value, decimals, false);
+        }
+      },
+      { field: 'cost_basis', headerName: 'Base de Costo', type: 'numericColumn', valueFormatter: p => formatUSD(p.value, 2, false) },
+      { field: 'current_value', headerName: 'Valor Actual', type: 'numericColumn', valueFormatter: p => formatUSD(p.value, 2, false) },
+      { 
+        field: 'unrealized_pl', 
+        headerName: 'P&L USD', 
+        type: 'numericColumn',
+        valueFormatter: p => formatUSD(p.value, 2, true),
+        cellStyle: p => ({ color: p.value >= 0 ? '#10b981' : '#ef4444' })
+      },
+      { 
+        field: 'unrealized_percent', 
+        headerName: 'P&L %', 
+        type: 'numericColumn',
+        valueFormatter: p => formatPercent(p.value, 2, true),
+        cellStyle: p => ({ color: p.value >= 0 ? '#10b981' : '#ef4444' })
+      },
+      { field: 'entries', headerName: 'Entradas', type: 'numericColumn' }
+    ];
+
+    const brokerName = broker === 'schwab' ? 'Schwab' : (broker === 'coinbase' ? 'Coinbase' : 'Todos los Brokers');
+    showAgGridModal(openPos, columnDefs, `📈 Posiciones Abiertas - ${brokerName} (${openPos.length} posiciones)`);
+  }
+
   // INIT - Conectar WebSocket al cargar página
   window.addEventListener('load', () => {
     console.log('🚀 Iniciando TradePlus Journal con WebSocket');
     connectWebSocket();
+    
+    // Configurar event listeners del modal (después de que el DOM esté listo)
+    // Cerrar con ESC
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeAgGridModal();
+    });
+
+    // Cerrar al hacer click fuera
+    const modal = document.getElementById('ag-grid-modal');
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target.id === 'ag-grid-modal') closeAgGridModal();
+      });
+    }
   });
 </script>
+
+<!-- Modal Ag-Grid -->
+<div id="ag-grid-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="modal-title" class="text-2xl font-bold"></h2>
+      <button class="modal-close-btn" onclick="closeAgGridModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="ag-grid-container" class="ag-theme-alpine-dark" style="height: 100%; width: 100%;"></div>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

@@ -37,6 +37,9 @@ class CoinbaseAdapter:
             from managers.coinbase_jwt_manager import CoinbaseJWTManager
             self.jwt_manager = CoinbaseJWTManager()
             self.session = requests.Session()
+            
+            # Cache de quote_increment por símbolo para formateo correcto
+            self.quote_increments: Dict[str, str] = {}
         except ImportError as e:
             logger.error(f"Error importando CoinbaseJWTManager: {e}")
             raise
@@ -190,6 +193,98 @@ class CoinbaseAdapter:
         except Exception as e:
             logger.error(f"Error inesperado normalizando: {e}")
             return None
+    
+    def get_quotes(self, symbols: List[str]) -> Dict[str, float]:
+        """
+        Obtiene cotizaciones actuales de Coinbase Products API
+        
+        Args:
+            symbols: Lista de símbolos (ej: ["BTC-USD", "ETH-USD"])
+        
+        Returns:
+            Dict con symbol: precio actual
+            Ejemplo: {"BTC-USD": 76234.50, "ETH-USD": 3456.78}
+        """
+        try:
+            if not symbols:
+                return {}
+            
+            prices = {}
+            
+            # Coinbase requiere requests individuales por producto
+            for symbol in symbols:
+                try:
+                    # GET /api/v3/brokerage/products/{product_id}
+                    endpoint = f"/api/v3/brokerage/products/{symbol}"
+                    jwt = self.jwt_manager.generate_jwt_for_endpoint(
+                        method='GET',
+                        path=endpoint
+                    )
+                    
+                    headers = {
+                        "Authorization": f"Bearer {jwt}",
+                        "Accept": "application/json"
+                    }
+                    
+                    url = f"{self.BASE_URL}{endpoint}"
+                    response = self.session.get(url, headers=headers, timeout=10)
+                    response.raise_for_status()
+                    
+                    data = response.json()
+                    
+                    # El precio está en data['price']
+                    if 'price' in data:
+                        prices[symbol] = float(data['price'])
+                        
+                        # Guardar quote_increment para formateo correcto
+                        if 'quote_increment' in data:
+                            self.quote_increments[symbol] = data['quote_increment']
+                            logger.debug(f"{symbol} quote_increment: {data['quote_increment']}")
+                    else:
+                        logger.warning(f"No se encontró precio para {symbol}")
+                        
+                except Exception as e:
+                    logger.error(f"Error obteniendo quote para {symbol}: {e}")
+                    continue
+            
+            logger.info(f"Quotes obtenidos para {len(prices)} símbolos de Coinbase")
+            return prices
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo quotes de Coinbase: {e}")
+            return {}
+    
+    def get_decimals_for_symbol(self, symbol: str) -> int:
+        """
+        Determina el número de decimales correcto para un símbolo basado en quote_increment
+        
+        Args:
+            symbol: Símbolo del producto (ej: "BTC-USD", "SHIB-USD")
+        
+        Returns:
+            Número de decimales (2-8)
+            
+        Ejemplos:
+            "0.01" -> 2 decimales (BTC, ETH)
+            "0.0001" -> 4 decimales
+            "0.00000001" -> 8 decimales (SHIB, PEPE)
+        """
+        if symbol not in self.quote_increments:
+            # Default: 8 decimales para crypto si no sabemos
+            return 8
+        
+        increment = self.quote_increments[symbol]
+        
+        try:
+            # Contar decimales en el increment
+            if '.' in increment:
+                decimals = len(increment.split('.')[1])
+                return decimals
+            else:
+                return 0
+        except Exception as e:
+            logger.warning(f"Error determinando decimales para {symbol}: {e}")
+            return 8  # Default seguro
 
 
 async def get_coinbase_journal(days: int = 7) -> Dict:

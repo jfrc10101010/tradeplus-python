@@ -301,6 +301,54 @@ class SchwabAdapter:
         except Exception as e:
             logger.error(f"Error inesperado normalizando: {e}")
             return None
+    
+    def get_quotes(self, symbols: List[str]) -> Dict[str, float]:
+        """
+        Obtiene cotizaciones actuales de Schwab Market Data API
+        
+        Args:
+            symbols: Lista de símbolos (ej: ["AAPL", "MSFT", "HOOD"])
+        
+        Returns:
+            Dict con symbol: precio actual
+            Ejemplo: {"AAPL": 178.50, "MSFT": 420.30}
+        """
+        try:
+            if not symbols:
+                return {}
+            
+            # Convertir lista a string separado por comas
+            symbols_str = ",".join(symbols)
+            
+            token = self.token_manager.get_current_token()
+            url = f"{self.BASE_URL}/marketdata/v1/quotes"
+            
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/json"
+            }
+            
+            params = {"symbols": symbols_str}
+            
+            response = self.session.get(url, headers=headers, params=params, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            # Parsear respuesta
+            prices = {}
+            for symbol, quote_data in data.items():
+                quote = quote_data.get('quote', {})
+                # Usar lastPrice, si no está usar mark
+                price = quote.get('lastPrice') or quote.get('mark') or 0.0
+                prices[symbol] = float(price)
+            
+            logger.info(f"Quotes obtenidos para {len(prices)} símbolos")
+            return prices
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo quotes: {e}")
+            return {}
 
 
 async def get_schwab_journal(days: int = 7) -> Dict:

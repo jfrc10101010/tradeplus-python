@@ -48,6 +48,51 @@ class JournalManager:
         self.capital_initial = capital_initial
         self._real_balance_cache = None
     
+    # ========================================================================
+    # FORMATEO CENTRALIZADO DE NÚMEROS
+    # ========================================================================
+    
+    def _format_number(self, value: float, decimals: int = 2, use_thousands: bool = True) -> str:
+        """
+        Formatea un número con separador de miles y decimales específicos
+        
+        Args:
+            value: Valor numérico a formatear
+            decimals: Número de decimales (2-8)
+            use_thousands: Si True, usa coma como separador de miles
+        
+        Returns:
+            String formateado: "1,234.56" o "1234.56"
+        """
+        if use_thousands:
+            return f"{value:,.{decimals}f}"
+        else:
+            return f"{value:.{decimals}f}"
+    
+    def _get_decimals_for_trade(self, trade: Dict) -> int:
+        """
+        Determina el número de decimales correcto para un trade según broker y símbolo
+        
+        Args:
+            trade: Dict con 'broker' y 'symbol'
+        
+        Returns:
+            Número de decimales (2 para stocks, 2-8 para crypto)
+        """
+        broker = trade.get('broker', 'schwab')
+        symbol = trade.get('symbol', '')
+        
+        if broker == 'schwab':
+            # Stocks: siempre 2 decimales
+            return 2
+        elif broker == 'coinbase':
+            # Crypto: depende del quote_increment
+            if self.coinbase:
+                return self.coinbase.get_decimals_for_symbol(symbol)
+            return 8  # Default para crypto
+        
+        return 2  # Default general
+    
     def get_real_balance(self) -> float:
         """Obtiene balance real de Schwab API"""
         if self._real_balance_cache:
@@ -111,13 +156,11 @@ class JournalManager:
         """
         from datetime import timezone
         
-        # Filtrar por período
+        # NO filtrar trades antes del FIFO - necesitamos todo el historial para calcular correctamente
+        # El filtro se aplicará DESPUÉS a las operaciones cerradas
+        cutoff = None
         if days:
             cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-            trades = [
-                t for t in trades
-                if datetime.fromisoformat(t['datetime'].replace('Z', '+00:00')) >= cutoff
-            ]
         
         if not trades:
             return self._empty_metrics()
@@ -145,6 +188,19 @@ class JournalManager:
             closed_operations.extend(result['closed_operations'])
             all_trades_processed.extend(result['trades'])
         
+        # FILTRAR operaciones cerradas por período (si se especificó)
+        # El filtro se aplica a la fecha de la VENTA (cierre de la operación)
+        if cutoff:
+            closed_operations = [
+                op for op in closed_operations
+                if datetime.fromisoformat(op['sell_date'].replace('Z', '+00:00')) >= cutoff
+            ]
+            # Filtrar también los trades mostrados en la lista
+            all_trades_processed = [
+                t for t in all_trades_processed
+                if datetime.fromisoformat(t['datetime'].replace('Z', '+00:00')) >= cutoff
+            ]
+        
         # Calcular métricas agregadas
         wins = len([op for op in closed_operations if op['pl_usd'] > 0])
         losses = len([op for op in closed_operations if op['pl_usd'] <= 0])
@@ -154,11 +210,12 @@ class JournalManager:
         total_wins_usd = sum([op['pl_usd'] for op in closed_operations if op['pl_usd'] > 0])
         total_losses_usd = abs(sum([op['pl_usd'] for op in closed_operations if op['pl_usd'] <= 0]))
         
-        # Profit Factor: Si no hay pérdidas pero hay ganancias, devolver el valor de ganancias (no infinito)
+        # Profit Factor = Total Wins / Total Losses
+        # Si no hay pérdidas, el Profit Factor es técnicamente infinito, pero usamos 999.99 como indicador
         if total_losses_usd > 0:
             profit_factor = total_wins_usd / total_losses_usd
         elif total_wins_usd > 0:
-            profit_factor = total_wins_usd  # No hay pérdidas, devolver ganancias totales
+            profit_factor = 999.99  # Indicador de "sin pérdidas" (win rate 100%)
         else:
             profit_factor = 0.0  # No hay trades cerrados
         
@@ -166,14 +223,21 @@ class JournalManager:
         capital_invested_closed = sum([op['cost_basis'] for op in closed_operations])
         pl_realized_percent = (pl_realized_usd / capital_invested_closed * 100) if capital_invested_closed > 0 else 0.0
         
+        # DEBUG: Log de cálculos
+        logger.info(f"📊 P&L Realizado - Ops cerradas: {len(closed_operations)}, "
+                   f"PL USD: ${pl_realized_usd:.2f}, Capital invertido: ${capital_invested_closed:.2f}, "
+                   f"PL %: {pl_realized_percent:.2f}%")
+        
         pl_unrealized_usd = sum([pos['unrealized_pl'] for pos in open_positions])
+        capital_invested_open = sum([pos['cost_basis'] for pos in open_positions])
+        pl_unrealized_percent = (pl_unrealized_usd / capital_invested_open * 100) if capital_invested_open > 0 else 0.0
         
         # Balance real
         current_balance = self.get_real_balance()
         pl_total = pl_realized_usd + pl_unrealized_usd
         
-        # Período
-        dates = sorted([t['datetime'][:10] for t in trades])
+        # Período - usar los trades FILTRADOS para calcular el rango de fechas
+        dates = sorted([t['datetime'][:10] for t in all_trades_processed])
         period_from = dates[0] if dates else None
         period_to = dates[-1] if dates else None
         
@@ -183,7 +247,7 @@ class JournalManager:
                 'days': days,
                 'from': period_from,
                 'to': period_to,
-                'trades_count': len(trades)
+                'trades_count': len(all_trades_processed)
             },
             'capital': {
                 'initial': self.capital_initial,
@@ -197,7 +261,7 @@ class JournalManager:
                 'open_detail': open_positions
             },
             'stats': {
-                'total_ops': len(open_positions) + len(closed_operations),
+                'total_ops': len(closed_operations),  # Solo operaciones cerradas
                 'wins': wins,
                 'losses': losses,
                 'win_rate': round(win_rate, 2),
@@ -205,10 +269,26 @@ class JournalManager:
                 'pl_realized_usd': round(pl_realized_usd, 2),
                 'pl_realized_percent': round(pl_realized_percent, 2),
                 'pl_unrealized_usd': round(pl_unrealized_usd, 2),
+                'pl_unrealized_percent': round(pl_unrealized_percent, 2),
                 'avg_pl_per_trade': round(pl_realized_usd / len(closed_operations), 2) if closed_operations else 0.0
             },
             'trades': all_trades_processed
         }
+    
+    def _format_metrics_response(self, metrics: Dict) -> Dict:
+        """
+        Formatea todos los números en la respuesta de métricas con formato correcto
+        
+        Args:
+            metrics: Dict retornado por compute_metrics()
+        
+        Returns:
+            Dict con números formateados como strings donde corresponde
+        """
+        # Por ahora retornamos sin formatear - el frontend hará el formateo
+        # Esto es porque necesitamos números para cálculos en Ag-Grid
+        # El formateo se hace en los valueFormatters de Ag-Grid
+        return metrics
     
     def _process_symbol_fifo(self, symbol: str, trades: List[Dict], 
                             current_prices: Optional[Dict[str, float]] = None) -> Dict:
@@ -273,23 +353,31 @@ class JournalManager:
                         buy['cost'] -= cost_portion
                         qty_remaining = 0.0
                 
-                # Crear operación cerrada
-                pl_usd = sell_proceeds - total_cost_basis
-                pl_percent = (pl_usd / total_cost_basis * 100) if total_cost_basis > 0 else 0.0
-                
-                closed_ops.append({
-                    'symbol': symbol,
-                    'pl_usd': pl_usd,
-                    'pl_percent': pl_percent,
-                    'cost_basis': total_cost_basis,
-                    'sell_proceeds': sell_proceeds,
-                    'qty': qty,
-                    'sell_date': trade['datetime']
-                })
-                
-                trade_meta['pl_usd'] = pl_usd
-                trade_meta['pl_percent'] = round(pl_percent, 2)
-                trade_meta['is_closed'] = True
+                # Crear operación cerrada SOLO si hubo match con compras
+                if total_cost_basis > 0:
+                    pl_usd = sell_proceeds - total_cost_basis
+                    pl_percent = (pl_usd / total_cost_basis * 100)
+                    
+                    closed_ops.append({
+                        'symbol': symbol,
+                        'pl_usd': pl_usd,
+                        'pl_percent': pl_percent,
+                        'cost_basis': total_cost_basis,
+                        'sell_proceeds': sell_proceeds,
+                        'qty': qty,
+                        'sell_date': trade['datetime']
+                    })
+                    
+                    trade_meta['pl_usd'] = pl_usd
+                    trade_meta['pl_percent'] = round(pl_percent, 2)
+                    trade_meta['cost_basis'] = total_cost_basis
+                    trade_meta['is_closed'] = True
+                else:
+                    # SELL sin BUY previo - ignorar (short o datos incompletos)
+                    logger.warning(f"⚠️ SELL sin BUY previo para {symbol} - ignorando en P&L")
+                    trade_meta['pl_usd'] = 0.0
+                    trade_meta['pl_percent'] = 0.0
+                    trade_meta['is_closed'] = False
             
             trades_meta.append(trade_meta)
         
@@ -367,7 +455,7 @@ class JournalManager:
         
         Args:
             days: Número de días hacia atrás
-            current_prices: Precios actuales para P&L no realizado
+            current_prices: Precios actuales para P&L no realizado (si None, se obtienen automáticamente)
         
         Returns:
             Dict con estructura esperada por server.js
@@ -392,8 +480,59 @@ class JournalManager:
         except Exception as e:
             logger.error(f"Error obteniendo Coinbase: {e}")
         
-        # Aplicar compute_metrics
+        # Si no se pasaron precios, obtenerlos de Schwab API
+        if current_prices is None and all_trades:
+            current_prices = self._get_current_prices(all_trades)
+        
+        # Aplicar compute_metrics con precios actuales
         return self.compute_metrics(all_trades, days=days, current_prices=current_prices)
+    
+    def _get_current_prices(self, trades: List[Dict]) -> Dict[str, float]:
+        """
+        Obtiene precios actuales para todos los símbolos en trades
+        
+        Args:
+            trades: Lista de trades
+        
+        Returns:
+            Dict con symbol: precio actual
+        """
+        try:
+            # Extraer símbolos únicos
+            symbols = list(set([t['symbol'] for t in trades if t.get('symbol')]))
+            
+            if not symbols:
+                return {}
+            
+            # Separar por broker
+            schwab_symbols = [s for s in symbols if not s.endswith('-USD')]  # Stocks
+            coinbase_symbols = [s for s in symbols if s.endswith('-USD')]     # Crypto
+            
+            prices = {}
+            
+            # Obtener quotes de Schwab
+            if schwab_symbols and self.schwab:
+                try:
+                    schwab_prices = self.schwab.get_quotes(schwab_symbols)
+                    prices.update(schwab_prices)
+                    logger.info(f"Precios obtenidos para {len(schwab_prices)} símbolos de Schwab")
+                except Exception as e:
+                    logger.error(f"Error obteniendo quotes Schwab: {e}")
+            
+            # Obtener precios de Coinbase (criptomonedas)
+            if coinbase_symbols and self.coinbase:
+                try:
+                    coinbase_prices = self.coinbase.get_quotes(coinbase_symbols)
+                    prices.update(coinbase_prices)
+                    logger.info(f"Precios obtenidos para {len(coinbase_prices)} símbolos de Coinbase")
+                except Exception as e:
+                    logger.error(f"Error obteniendo quotes Coinbase: {e}")
+            
+            return prices
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo precios actuales: {e}")
+            return {}
     
     def get_trades_by_broker(self, broker: str, days: int = 7, 
                             current_prices: Optional[Dict[str, float]] = None) -> Dict:
@@ -403,7 +542,7 @@ class JournalManager:
         Args:
             broker: 'schwab' o 'coinbase'
             days: Número de días
-            current_prices: Precios actuales
+            current_prices: Precios actuales (si None, se obtienen automáticamente)
         
         Returns:
             Dict con métricas de un solo broker
@@ -420,6 +559,10 @@ class JournalManager:
         except Exception as e:
             logger.error(f"Error obteniendo {broker}: {e}")
             return {'error': str(e), 'broker': broker, **self._empty_metrics()}
+        
+        # Si no se pasaron precios, obtenerlos automáticamente
+        if current_prices is None and trades:
+            current_prices = self._get_current_prices(trades)
         
         result = self.compute_metrics(trades, days=days, current_prices=current_prices)
         result['broker'] = broker

@@ -150,19 +150,19 @@ cache = JournalCache()
 # ========================================================================
 
 async def update_cache_loop():
-    """Loop infinito que actualiza cache cada 30s"""
-    logger.info("🚀 Background cache updater iniciado")
+    """Loop infinito que actualiza cache cada 2s para latencia óptima"""
+    logger.info("🚀 Background cache updater iniciado (2s interval - latencia 2-4s)")
     
     # Primera actualización inmediata
     await cache.update_all()
     
     while True:
         try:
-            await asyncio.sleep(30)  # Esperar 30 segundos
+            await asyncio.sleep(2)  # 2 segundos = 30 req/min por endpoint = SEGURO
             await cache.update_all()
         except Exception as e:
             logger.error(f"❌ Error en update loop: {e}")
-            await asyncio.sleep(5)
+            await asyncio.sleep(2)
 
 @app.on_event("startup")
 async def startup_event():

@@ -351,29 +351,91 @@
     </div>
 
     <!-- Capital + Charts -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-      <!-- Capital Card -->
-      <div class="chart-card">
-        <h3 class="text-lg font-bold mb-4">💰 Capital Actual</h3>
-        <p class="text-4xl font-bold gain mb-2" id="capital-actual-schwab">$-</p>
-        <p class="text-sm text-slate-400 mb-4">Meta EOY 2026: $25,000</p>
+    <!-- Capital KPIs + Configuración (full width horizontal) -->
+    <div class="chart-card mb-6">
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
         
-        <div class="mt-6 bg-emerald-900/20 rounded p-4">
-          <div class="flex justify-between mb-2">
-            <span class="text-sm text-slate-400">Progreso</span>
-            <span class="text-sm font-bold gain" id="progress-pct-schwab">0%</span>
+        <!-- Capital Actual -->
+        <div class="bg-slate-800/30 rounded p-4">
+          <p class="text-xs text-slate-400 mb-1">💰 Capital Actual</p>
+          <p class="text-2xl font-bold gain" id="capital-actual-schwab">$-</p>
+        </div>
+        
+        <!-- P/L Day USD -->
+        <div class="bg-slate-800/30 rounded p-4">
+          <p class="text-xs text-slate-400 mb-1">📊 P/L Day</p>
+          <p class="text-2xl font-bold" id="pl-day-usd-schwab">$-</p>
+        </div>
+        
+        <!-- P/L Day % -->
+        <div class="bg-slate-800/30 rounded p-4">
+          <p class="text-xs text-slate-400 mb-1">📈 P/L Day %</p>
+          <p class="text-2xl font-bold" id="pl-day-pct-schwab">-%</p>
+        </div>
+        
+        <!-- Progreso -->
+        <div class="bg-slate-800/30 rounded p-4">
+          <p class="text-xs text-slate-400 mb-1">🎯 Progreso</p>
+          <p class="text-2xl font-bold gain" id="progress-pct-schwab">0%</p>
+          <p class="text-xs text-slate-400 mt-1" id="progress-text-short-schwab">-</p>
+        </div>
+        
+        <!-- Días restantes -->
+        <div class="bg-slate-800/30 rounded p-4">
+          <p class="text-xs text-slate-400 mb-1">⏱️ Días restantes</p>
+          <p class="text-2xl font-bold text-blue-400" id="days-remaining-schwab">-</p>
+          <p class="text-xs text-slate-400 mt-1" id="days-elapsed-schwab">-</p>
+        </div>
+      </div>
+      
+      <!-- Configuración de fechas y meta -->
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mt-4 p-4 bg-slate-800/20 rounded">
+        <div>
+          <label class="text-xs text-slate-400 block mb-1">Fecha Inicial</label>
+          <div class="flex gap-2">
+            <input type="date" id="fecha-inicial-schwab" value="2025-10-28"
+                   class="bg-slate-700 text-white px-3 py-2 rounded text-sm flex-1"
+                   onchange="updateCapitalGoal('schwab')">
+            <button onclick="restoreInitialDate('schwab')" 
+                    class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-xs transition"
+                    title="Restaurar a primer trade">
+              🔄
+            </button>
           </div>
-          <div class="w-full bg-slate-700 rounded h-3 overflow-hidden">
-            <div class="bg-emerald-500 h-3 rounded transition-all duration-500" id="progress-bar-schwab" style="width: 0%"></div>
+        </div>
+        
+        <div>
+          <label class="text-xs text-slate-400 block mb-1">Fecha Meta</label>
+          <input type="date" id="meta-fecha-schwab" value="2026-12-31"
+                 class="bg-slate-700 text-white px-3 py-2 rounded text-sm w-full"
+                 onchange="updateCapitalGoal('schwab')">
+        </div>
+        
+        <div>
+          <label class="text-xs text-slate-400 block mb-1">Capital Meta</label>
+          <div class="flex items-center gap-2 bg-slate-700 rounded px-3 py-2">
+            <span class="text-slate-400 text-sm">$</span>
+            <input type="text" id="meta-capital-schwab" value="25,000" 
+                   class="bg-transparent text-white text-sm flex-1 text-right outline-none"
+                   onchange="updateCapitalGoal('schwab')"
+                   onblur="formatMetaInput('schwab')"
+                   onfocus="unformatMetaInput('schwab')">
+          </div>
+        </div>
+        
+        <div class="flex items-end">
+          <div class="w-full bg-emerald-900/20 rounded p-3">
+            <p class="text-xs text-slate-400 mb-1">Falta para meta</p>
+            <p class="text-lg font-bold gain" id="progress-text-schwab">-</p>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Capital Evolution Chart -->
-      <div class="chart-card lg:col-span-2">
-        <h3 class="text-lg font-bold mb-4">📈 Evolución de Capital</h3>
-        <canvas id="chart-capital-schwab" height="200"></canvas>
-      </div>
+    <!-- Capital Evolution Chart (full width) -->
+    <div class="chart-card mb-8">
+      <h3 class="text-lg font-bold mb-4">📈 Evolución de Capital hacia la Meta</h3>
+      <canvas id="chart-capital-schwab" height="120"></canvas>
     </div>
 
     <!-- P&L Charts -->
@@ -389,26 +451,9 @@
     </div>
 
     <!-- Trades Table -->
-    <div class="chart-card mb-8">
-      <h3 class="text-lg font-bold mb-4">📋 Detalle de Trades (últimos 30)</h3>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead class="border-b border-slate-600">
-            <tr class="text-slate-400 text-xs uppercase">
-              <th class="text-left py-3 px-4">Fecha</th>
-              <th class="text-left py-3 px-4">Símbolo</th>
-              <th class="text-left py-3 px-4">Lado</th>
-              <th class="text-right py-3 px-4">Cantidad</th>
-              <th class="text-right py-3 px-4">Precio</th>
-              <th class="text-right py-3 px-4">Total</th>
-              <th class="text-right py-3 px-4">Fee</th>
-              <th class="text-right py-3 px-4">P&L USD</th>
-              <th class="text-right py-3 px-4">P&L %</th>
-            </tr>
-          </thead>
-          <tbody id="tbody-schwab"></tbody>
-        </table>
-      </div>
+    <div class="chart-card mb-8" id="trades-section-schwab">
+      <h3 class="text-lg font-bold mb-4">📋 Detalle de Trades</h3>
+      <div id="grid-schwab" class="ag-theme-alpine-dark" style="height: 600px; width: 100%;"></div>
     </div>
 
     <!-- Top Winners/Losers -->
@@ -490,10 +535,47 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
       <div class="chart-card">
-        <h3 class="text-lg font-bold mb-4">💰 Capital Actual</h3>
-        <p class="text-4xl font-bold gain mb-2" id="capital-actual-coinbase">$-</p>
-        <p class="text-sm text-slate-400 mb-4">Meta EOY 2026: $25,000</p>
-        <div class="mt-6 bg-emerald-900/20 rounded p-4">
+        <h3 class="text-lg font-bold mb-4">💰 Capital & P/L Day</h3>
+        
+        <!-- Capital Actual -->
+        <div class="mb-4">
+          <p class="text-sm text-slate-400">Capital Actual</p>
+          <p class="text-3xl font-bold gain mb-2" id="capital-actual-coinbase">$-</p>
+        </div>
+        
+        <!-- P/L Day (from Coinbase API) -->
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div class="bg-slate-800/50 rounded p-3">
+            <p class="text-xs text-slate-400 mb-1">P/L Day</p>
+            <p class="text-xl font-bold" id="pl-day-usd-coinbase">$-</p>
+          </div>
+          <div class="bg-slate-800/50 rounded p-3">
+            <p class="text-xs text-slate-400 mb-1">P/L Day %</p>
+            <p class="text-xl font-bold" id="pl-day-pct-coinbase">-%</p>
+          </div>
+        </div>
+        
+        <!-- Meta editable -->
+        <div class="bg-slate-800/50 rounded p-3 mb-4">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-xs text-slate-400">Meta:</span>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-slate-400">$</span>
+              <input type="number" id="meta-capital-coinbase" value="25000" 
+                     class="bg-slate-700 text-white px-2 py-1 rounded w-24 text-sm text-right"
+                     onchange="updateCapitalGoal('coinbase')">
+            </div>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-slate-400">Fecha:</span>
+            <input type="date" id="meta-fecha-coinbase" value="2026-12-31"
+                   class="bg-slate-700 text-white px-2 py-1 rounded text-sm"
+                   onchange="updateCapitalGoal('coinbase')">
+          </div>
+        </div>
+        
+        <!-- Progreso -->
+        <div class="bg-emerald-900/20 rounded p-4">
           <div class="flex justify-between mb-2">
             <span class="text-sm text-slate-400">Progreso</span>
             <span class="text-sm font-bold gain" id="progress-pct-coinbase">0%</span>
@@ -501,6 +583,7 @@
           <div class="w-full bg-slate-700 rounded h-3 overflow-hidden">
             <div class="bg-emerald-500 h-3 rounded transition-all duration-500" id="progress-bar-coinbase" style="width: 0%"></div>
           </div>
+          <p class="text-xs text-slate-400 mt-2 text-center" id="progress-text-coinbase">-</p>
         </div>
       </div>
       <div class="chart-card lg:col-span-2">
@@ -620,10 +703,47 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
       <div class="chart-card">
-        <h3 class="text-lg font-bold mb-4">💰 Capital Actual</h3>
-        <p class="text-4xl font-bold gain mb-2" id="capital-actual-all">$-</p>
-        <p class="text-sm text-slate-400 mb-4">Meta EOY 2026: $25,000</p>
-        <div class="mt-6 bg-emerald-900/20 rounded p-4">
+        <h3 class="text-lg font-bold mb-4">💰 Capital & P/L Day</h3>
+        
+        <!-- Capital Actual -->
+        <div class="mb-4">
+          <p class="text-sm text-slate-400">Capital Actual</p>
+          <p class="text-3xl font-bold gain mb-2" id="capital-actual-all">$-</p>
+        </div>
+        
+        <!-- P/L Day (combinado) -->
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div class="bg-slate-800/50 rounded p-3">
+            <p class="text-xs text-slate-400 mb-1">P/L Day</p>
+            <p class="text-xl font-bold" id="pl-day-usd-all">$-</p>
+          </div>
+          <div class="bg-slate-800/50 rounded p-3">
+            <p class="text-xs text-slate-400 mb-1">P/L Day %</p>
+            <p class="text-xl font-bold" id="pl-day-pct-all">-%</p>
+          </div>
+        </div>
+        
+        <!-- Meta editable -->
+        <div class="bg-slate-800/50 rounded p-3 mb-4">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-xs text-slate-400">Meta:</span>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-slate-400">$</span>
+              <input type="number" id="meta-capital-all" value="25000" 
+                     class="bg-slate-700 text-white px-2 py-1 rounded w-24 text-sm text-right"
+                     onchange="updateCapitalGoal('all')">
+            </div>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-slate-400">Fecha:</span>
+            <input type="date" id="meta-fecha-all" value="2026-12-31"
+                   class="bg-slate-700 text-white px-2 py-1 rounded text-sm"
+                   onchange="updateCapitalGoal('all')">
+          </div>
+        </div>
+        
+        <!-- Progreso -->
+        <div class="bg-emerald-900/20 rounded p-4">
           <div class="flex justify-between mb-2">
             <span class="text-sm text-slate-400">Progreso</span>
             <span class="text-sm font-bold gain" id="progress-pct-all">0%</span>
@@ -631,6 +751,7 @@
           <div class="w-full bg-slate-700 rounded h-3 overflow-hidden">
             <div class="bg-emerald-500 h-3 rounded transition-all duration-500" id="progress-bar-all" style="width: 0%"></div>
           </div>
+          <p class="text-xs text-slate-400 mt-2 text-center" id="progress-text-all">-</p>
         </div>
       </div>
       <div class="chart-card lg:col-span-2">
@@ -691,6 +812,7 @@
 <!-- SCRIPTS -->
 <script>
   let chartsMap = {};  // Guardar refs de charts para actualizar
+  let gridsMap = {};   // Guardar refs de AG Grid para actualizar
   let schwabData = null;
   let coinbaseData = null;
   let allData = null;
@@ -844,10 +966,23 @@
   }
   
   function updateStatsCounter() {
-    const totalTradesSchwab = schwabData?.trades?.length || 0;
-    const totalTradesCoinbase = coinbaseData?.trades?.length || 0;
-    const totalOps = (schwabData?.stats?.total_ops || 0) + (coinbaseData?.stats?.total_ops || 0);
-    const statsText = `${totalOps} operaciones | ${totalTradesSchwab + totalTradesCoinbase} trades | Schwab: ${totalTradesSchwab} | Coinbase: ${totalTradesCoinbase}`;
+    // Solo mostrar datos del broker activo (schwab o coinbase), no ambos
+    let statsText = 'Cargando...';
+    
+    if (currentBroker === 'schwab' && schwabData) {
+      const ops = schwabData.stats?.total_ops || 0;
+      const trades = schwabData.trades?.length || 0;
+      statsText = `${ops} operaciones | ${trades} trades | Schwab`;
+    } else if (currentBroker === 'coinbase' && coinbaseData) {
+      const ops = coinbaseData.stats?.total_ops || 0;
+      const trades = coinbaseData.trades?.length || 0;
+      statsText = `${ops} operaciones | ${trades} trades | Coinbase`;
+    } else if (currentBroker === 'all' && allData) {
+      const ops = allData.stats?.total_ops || 0;
+      const trades = allData.trades?.length || 0;
+      statsText = `${ops} operaciones | ${trades} trades | Todos los brokers`;
+    }
+    
     document.getElementById('current-period-stats').textContent = statsText;
   }
 
@@ -936,7 +1071,7 @@
           <div class="text-sm text-slate-400 space-y-1">
             <div class="flex justify-between">
               <span>Cantidad:</span>
-              <span class="font-bold text-white">${formatNumber(pos.qty, 4, false)} ${pos.symbol.includes('-USD') ? 'units' : 'shares'}</span>
+              <span class="font-bold text-white">${pos.qty % 1 === 0 ? pos.qty.toFixed(0) : pos.qty.toFixed(decimals)} ${pos.symbol.includes('-USD') ? 'units' : 'shares'}</span>
             </div>
             <div class="flex justify-between">
               <span>Avg Cost:</span>
@@ -1049,12 +1184,66 @@
     const currentCapital = capital.current || 5000;
     document.getElementById(`capital-actual-${broker}`).textContent = formatUSD(currentCapital, 2, false);
     
-    const progressPct = Math.min(((currentCapital) / 25000) * 100, 100);
-    document.getElementById(`progress-pct-${broker}`).textContent = `${progressPct.toFixed(1)}%`;
-    document.getElementById(`progress-bar-${broker}`).style.width = `${progressPct}%`;
+    // P/L Day - calcular solo trades de HOY (fecha actual)
+    const today = new Date().toISOString().split('T')[0]; // "2025-11-08"
+    const todayTrades = (data.trades || []).filter(t => {
+      const tradeDate = t.datetime.split('T')[0];
+      return tradeDate === today && t.is_closed === true;
+    });
+    
+    // Sumar P&L de trades cerrados hoy
+    let plDayUsd = 0;
+    let plDayCostBasis = 0;
+    todayTrades.forEach(t => {
+      plDayUsd += (t.pl_usd || 0);
+      plDayCostBasis += (t.cost_basis || 0);
+    });
+    
+    const plDayPct = plDayCostBasis > 0 ? (plDayUsd / plDayCostBasis * 100) : 0;
+    
+    const plDayElement = document.getElementById(`pl-day-usd-${broker}`);
+    if (plDayElement) {
+      if (todayTrades.length === 0) {
+        // No hay trades cerrados hoy
+        plDayElement.textContent = '$0.00';
+        plDayElement.className = 'text-xl font-bold text-slate-400';
+      } else {
+        plDayElement.textContent = formatUSD(plDayUsd, 2, true);
+        plDayElement.className = `text-xl font-bold ${plDayUsd >= 0 ? 'gain' : 'loss'}`;
+      }
+    }
+    
+    const plDayPctElement = document.getElementById(`pl-day-pct-${broker}`);
+    if (plDayPctElement) {
+      if (todayTrades.length === 0) {
+        plDayPctElement.textContent = '0.00%';
+        plDayPctElement.className = 'text-xl font-bold text-slate-400';
+      } else {
+        plDayPctElement.textContent = formatPercent(plDayPct, 2, true);
+        plDayPctElement.className = `text-xl font-bold ${plDayPct >= 0 ? 'gain' : 'loss'}`;
+      }
+    }
+    
+    // Progreso hacia meta - Ya no se calcula aquí, lo hace updateCapitalGoal()
+    // Solo se mantiene por compatibilidad con el texto de progreso del diseño antiguo (coinbase/all)
+    const metaInput = document.getElementById(`meta-capital-${broker}`);
+    if (metaInput) {
+      const metaCapital = parseFloat(metaInput.value.replace(/,/g, '')) || 25000;
+      const remaining = metaCapital - currentCapital;
+      const progressText = remaining > 0 
+        ? `Faltan ${formatUSD(remaining, 2, false)} para la meta`
+        : `¡Meta alcanzada! +${formatUSD(Math.abs(remaining), 2, false)}`;
+      
+      const progressTextElement = document.getElementById(`progress-text-${broker}`);
+      if (progressTextElement) {
+        progressTextElement.textContent = progressText;
+      }
+    }
 
-    // Renderizar charts
-    renderCapitalChart(data, broker, suffix);
+    // Actualizar cálculo de días restantes y gráfico de capital (esto llama a renderCapitalChart internamente)
+    updateCapitalGoal(broker);
+
+    // Renderizar otros charts
     renderPLDailyChart(data, broker, suffix);
     renderSymbolsChart(data, broker, suffix);
     renderHourlyPerformance(data.trades || [], broker, suffix);
@@ -1073,79 +1262,431 @@
   // ========================================================================
 
   function renderCapitalChart(data, broker, suffix) {
-    const evolution = (data.capital?.evolution || []).slice(-30);  // Últimos 30 días
     const ctx = document.getElementById(`chart-capital${suffix}`);
-    if (!ctx) return;
+    if (!ctx) {
+      console.warn(`⚠️ No se encontró canvas para gráfico: chart-capital${suffix}`);
+      return;
+    }
+    
+    // Get date range from inputs
+    const fechaInicialInput = document.getElementById(`fecha-inicial-${broker}`);
+    const metaFechaInput = document.getElementById(`meta-fecha-${broker}`);
+    const metaCapitalInput = document.getElementById(`meta-capital-${broker}`);
+    
+    const metaCapital = metaCapitalInput ? parseFloat(metaCapitalInput.value.replace(/,/g, '')) : 25000;
+    
+    // Usar el período seleccionado (currentDays: 7, 30, 90, 180, 365, all)
+    const nowDate = new Date();
+    const startDate = new Date(nowDate);
+    
+    // Calcular fecha inicial según período seleccionado
+    if (currentDays === 'all') {
+      // Si es "all", usar desde el primer trade
+      if (data.trades && data.trades.length > 0) {
+        const firstTrade = data.trades.reduce((oldest, trade) => {
+          return trade.datetime < oldest.datetime ? trade : oldest;
+        });
+        startDate.setTime(new Date(firstTrade.datetime.split('T')[0]).getTime());
+      } else {
+        startDate.setDate(nowDate.getDate() - 30); // Default 30 días si no hay trades
+      }
+    } else {
+      startDate.setDate(nowDate.getDate() - currentDays);
+    }
+    
+    const endDate = nowDate;
+    
+    console.log(`📊 Renderizando gráfico ${broker} - Período: ${currentDays} días (${startDate.toISOString().split('T')[0]} → ${endDate.toISOString().split('T')[0]}), Meta: $${metaCapital.toLocaleString()}`);
+    
+    // Generate daily labels for selected period
+    // Usar fecha local sin conversión UTC para evitar desfases de zona horaria
+    const dailyLabels = [];
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const day = String(currentDate.getDate()).padStart(2, '0');
+      dailyLabels.push(`${year}-${month}-${day}`);
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    console.log(`📅 dailyLabels generados (${dailyLabels.length} días):`, dailyLabels.slice(0, 10), '...');
+    
+    // Map evolution data to daily values
+    const evolutionMap = {};
+    const evolutionData = data.capital?.evolution || [];
+    console.log(`   📈 Datos de evolución del backend: ${evolutionData.length} días`);
+    
+    evolutionData.forEach(d => {
+      evolutionMap[d.date] = d.capital_end;
+    });
+    
+    // Si no hay datos de evolución, generarlos desde los trades
+    if (evolutionData.length === 0 && data.trades && data.trades.length > 0) {
+      console.log(`   🔧 Generando evolución sintética desde ${data.trades.length} trades`);
+      
+      const initialCapital = data.capital?.initial || 5000;
+      let runningCapital = initialCapital;
+      
+      // Agrupar trades por fecha y calcular P/L diario
+      const tradesByDate = {};
+      data.trades.forEach(trade => {
+        if (!trade.datetime || !trade.is_closed) return;
+        const tradeDate = trade.datetime.split('T')[0];
+        if (!tradesByDate[tradeDate]) {
+          tradesByDate[tradeDate] = 0;
+        }
+        tradesByDate[tradeDate] += (trade.pl_usd || 0);
+      });
+      
+      // Crear evolución acumulada
+      dailyLabels.forEach(date => {
+        if (tradesByDate[date]) {
+          runningCapital += tradesByDate[date];
+        }
+        evolutionMap[date] = runningCapital;
+      });
+      
+      console.log(`   ✅ Evolución sintética generada: ${Object.keys(evolutionMap).length} días con datos`);
+    }
+    
+    // Create daily data points, interpolating missing days
+    const dailyData = [];
+    let lastKnownValue = data.capital?.initial || 5000;
+    
+    console.log(`   💰 Capital inicial: $${lastKnownValue.toLocaleString()}, Capital actual: $${(data.capital?.current || 0).toLocaleString()}`);
+    
+    dailyLabels.forEach(date => {
+      if (evolutionMap[date]) {
+        lastKnownValue = evolutionMap[date];
+        dailyData.push(lastKnownValue);
+      } else {
+        dailyData.push(lastKnownValue); // Repeat last known value
+      }
+    });
+    
+    console.log(`   📊 Datos para gráfico generados: ${dailyData.length} puntos`);
+    
+    if (dailyData.length === 0) {
+      console.error(`   ❌ ERROR: No hay datos para graficar. dailyLabels: ${dailyLabels.length}, evolutionMap: ${Object.keys(evolutionMap).length}`);
+      return;
+    }
+    
+    console.log(`   📊 Rango de capital: $${Math.min(...dailyData).toFixed(2)} - $${Math.max(...dailyData).toFixed(2)}`);
+    console.log(`   📊 Primer valor: $${dailyData[0]}, Último valor: $${dailyData[dailyData.length-1]}`);
+    
+    // Create projection line from current capital to meta
+    const currentCapital = data.capital?.current || lastKnownValue;
+    const today = new Date().toISOString().split('T')[0];
+    const todayIndex = dailyLabels.indexOf(today);
+    
+    console.log(`   📅 Hoy: ${today}, Índice: ${todayIndex} de ${dailyLabels.length}`);
+    
+    const projectionData = dailyLabels.map((date, idx) => {
+      if (idx < todayIndex) return null; // No projection before today
+      if (idx === todayIndex) return currentCapital; // Start from current capital
+      
+      // Linear interpolation to meta at end date
+      const daysFromToday = idx - todayIndex;
+      const totalDaysToMeta = dailyLabels.length - todayIndex - 1;
+      const progressPerDay = (metaCapital - currentCapital) / totalDaysToMeta;
+      return currentCapital + (progressPerDay * daysFromToday);
+    });
     
     const chartKey = `capital-${broker}`;
-    if (chartsMap[chartKey]) chartsMap[chartKey].destroy();
+    if (chartsMap[chartKey]) {
+      console.log(`   🗑️ Destruyendo gráfico anterior: ${chartKey}`);
+      chartsMap[chartKey].destroy();
+    }
 
+    console.log(`   ✨ Creando gráfico ${chartKey} con ${dailyData.length} datos`);
+    
+    // Determinar si mostrar línea de meta (solo si el rango de datos es >$500 o estamos cerca de la meta)
+    const maxData = Math.max(...dailyData);
+    const minData = Math.min(...dailyData);
+    const dataRange = maxData - minData;
+    const showMetaLine = dataRange >= 500 || (maxData / metaCapital > 0.5);
+    
+    const datasets = [
+      {
+        label: 'Capital Diario (USD)',
+        data: dailyData,
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.3,
+        pointRadius: 4, // Puntos visibles para cada día
+        pointHoverRadius: 8, // Más grande al pasar mouse
+        pointBackgroundColor: '#10b981',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointHoverBackgroundColor: '#10b981',
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 3
+      }
+    ];
+    
+    // Agregar línea de meta solo si es relevante
+    if (showMetaLine) {
+      const metaLine = dailyLabels.map(() => metaCapital);
+      datasets.push({
+        label: `Meta: $${metaCapital.toLocaleString()}`,
+        data: metaLine,
+        borderColor: '#f59e0b',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        borderDash: [10, 5],
+        fill: false,
+        tension: 0,
+        pointRadius: 0
+      });
+      console.log(`   🎯 Línea de meta incluida en gráfico`);
+    } else {
+      console.log(`   ℹ️ Línea de meta omitida (rango pequeño: $${dataRange.toFixed(2)})`);
+    }
+    
     chartsMap[chartKey] = new Chart(ctx.getContext('2d'), {
       type: 'line',
       data: {
-        labels: evolution.map(d => d.date.slice(5)),
-        datasets: [{
-          label: 'Capital (USD)',
-          data: evolution.map(d => d.capital_end),
-          borderColor: '#10b981',
-          backgroundColor: 'rgba(16, 185, 129, 0.1)',
-          borderWidth: 3,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 5,
-          pointBackgroundColor: '#10b981',
-          pointHoverRadius: 7
-        }]
+        labels: dailyLabels.map(d => d.slice(5)), // MM-DD format
+        datasets: datasets
       },
       options: {
         responsive: true,
         maintainAspectRatio: true,
+        onClick: (event, elements) => {
+          if (elements.length > 0) {
+            const dataIndex = elements[0].index;
+            const clickedDate = dailyLabels[dataIndex];
+            console.log(`📅 Click en gráfico - DataIndex: ${dataIndex}, Total labels: ${dailyLabels.length}`);
+            console.log(`📅 dailyLabels alrededor del click:`, dailyLabels.slice(Math.max(0, dataIndex-2), dataIndex+3));
+            console.log(`📅 Fecha clickeada: ${clickedDate}, Broker: ${broker}`);
+            
+            // Scroll a la sección de trades
+            const tradesSection = document.getElementById(`trades-section-${broker}`);
+            console.log(`📊 Sección de trades encontrada:`, tradesSection ? 'Sí' : 'No');
+            
+            if (tradesSection) {
+              tradesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              
+              // Highlight trades de ese día usando AG Grid API
+              setTimeout(() => {
+                const gridKey = `grid-${broker}`;
+                const grid = gridsMap[gridKey];
+                
+                if (!grid) {
+                  console.warn(`⚠️ No se encontró AG Grid: ${gridKey}`);
+                  return;
+                }
+                
+                console.log(`🔍 Buscando trades del ${clickedDate} en AG Grid`);
+                
+                let firstNodeOfDay = null;
+                let allNodesOfDay = [];
+                let debugDates = [];  // Para debugging
+                
+                grid.forEachNode((node) => {
+                  if (!node.data || !node.data.datetime) return;
+                  
+                  // Normalizar fecha a formato local consistente (sin conversión UTC)
+                  const tradeDate = new Date(node.data.datetime);
+                  const year = tradeDate.getFullYear();
+                  const month = String(tradeDate.getMonth() + 1).padStart(2, '0');
+                  const day = String(tradeDate.getDate()).padStart(2, '0');
+                  const rowDate = `${year}-${month}-${day}`;
+                  
+                  // Debug: guardar primeras 5 fechas para ver formato
+                  if (debugDates.length < 5) {
+                    debugDates.push({ 
+                      rowDate, 
+                      originalDatetime: node.data.datetime,
+                      clickedDate: clickedDate,
+                      rowIndex: node.rowIndex 
+                    });
+                  }
+                  
+                  if (rowDate === clickedDate) {
+                    allNodesOfDay.push(node);
+                    // Guardar el primer trade de ese día (más reciente por ordenamiento descendente)
+                    if (!firstNodeOfDay) {
+                      firstNodeOfDay = node;
+                    }
+                  }
+                });
+                
+                console.log(`🔍 Primeras fechas en grid:`, debugDates);
+                console.log(`✨ ${allNodesOfDay.length} trades encontrados para ${clickedDate}`);
+                
+                if (firstNodeOfDay) {
+                  // Navegar a la página que contiene el primer trade
+                  const pageSize = grid.paginationGetPageSize();
+                  const pageNumber = Math.floor(firstNodeOfDay.rowIndex / pageSize);
+                  grid.paginationGoToPage(pageNumber);
+                  
+                  // Esperar a que la página cambie y luego hacer scroll
+                  setTimeout(() => {
+                    grid.ensureNodeVisible(firstNodeOfDay, 'top');
+                    
+                    // Flash cells para resaltar visualmente TODOS los trades del día
+                    allNodesOfDay.forEach(node => {
+                      grid.flashCells({
+                        rowNodes: [node],
+                        flashDelay: 500,
+                        fadeDelay: 2500
+                      });
+                    });
+                  }, 300);
+                } else {
+                  alert(`No hay trades para el ${clickedDate} en el período seleccionado`);
+                }
+              }, 500);
+            }
+          } else {
+            console.log(`❌ Click en gráfico pero sin elementos`);
+          }
+        },
         plugins: {
-          legend: { display: false },
+          legend: { 
+            display: true,
+            position: 'top',
+            labels: {
+              color: '#94a3b8',
+              font: { size: 11 },
+              usePointStyle: true,
+              padding: 10
+            }
+          },
           tooltip: {
             callbacks: {
               title: (context) => {
                 const idx = context[0].dataIndex;
-                return evolution[idx].date;
+                const dateStr = dailyLabels[idx];
+                // Parsear manualmente para evitar conversión de zona horaria
+                const [year, month, day] = dateStr.split('-').map(Number);
+                const date = new Date(year, month - 1, day);
+                const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+                return `${dayNames[date.getDay()]} ${date.getDate()} de ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
               },
               label: (context) => {
                 const value = context.parsed.y;
+                if (value === null) return null;
+                
                 const idx = context.dataIndex;
-                const plDaily = evolution[idx].pl_daily || 0;
-                return [
-                  `Capital: $${value.toLocaleString('en-US', {minimumFractionDigits: 2})}`,
-                  `P&L del día: $${plDaily.toFixed(2)}`
-                ];
+                const labels = [];
+                
+                // Capital del día
+                labels.push(`Capital: $${value.toLocaleString('en-US', {minimumFractionDigits: 2})}`);
+                
+                // Cambio vs día anterior
+                if (idx > 0 && dailyData[idx-1]) {
+                  const change = value - dailyData[idx-1];
+                  const changePercent = (change / dailyData[idx-1] * 100);
+                  const sign = change >= 0 ? '+' : '';
+                  labels.push(`Cambio: ${sign}$${change.toFixed(2)} (${sign}${changePercent.toFixed(2)}%)`);
+                }
+                
+                // Contar trades de ese día
+                const dateStr = dailyLabels[idx];
+                const dayTrades = (data.trades || []).filter(t => 
+                  t.datetime && t.datetime.split('T')[0] === dateStr && t.is_closed
+                );
+                
+                if (dayTrades.length > 0) {
+                  const dayPL = dayTrades.reduce((sum, t) => sum + (t.pl_usd || 0), 0);
+                  labels.push(`${dayTrades.length} operaciones: ${dayPL >= 0 ? '+' : ''}$${dayPL.toFixed(2)}`);
+                } else {
+                  labels.push('Sin operaciones cerradas');
+                }
+                
+                labels.push('📊 Click para ver detalle');
+                
+                return labels;
+              },
+              footer: (context) => {
+                return 'Click en el punto para ir a la tabla de trades';
               }
             }
           }
         },
         scales: {
           y: {
+            // Ajustar eje Y según período: períodos cortos enfocados en capital actual, largos incluyen meta
+            min: Math.floor(Math.min(...dailyData) * 0.98), // 2% debajo del mínimo
+            max: (() => {
+              const maxData = Math.max(...dailyData);
+              const dataRange = maxData - Math.min(...dailyData);
+              
+              // Si el rango es pequeño (< $500), enfocarse en variaciones
+              if (dataRange < 500) {
+                return Math.ceil(maxData * 1.02); // Solo 2% arriba
+              }
+              // Si estamos cerca de la meta (>50%), mostrar meta
+              else if (maxData / metaCapital > 0.5) {
+                return metaCapital * 1.05;
+              }
+              // Caso intermedio
+              else {
+                return Math.ceil(maxData * 1.2); // 20% arriba
+              }
+            })(),
             ticks: { 
               color: '#94a3b8',
-              callback: (value) => '$' + value.toLocaleString('en-US', {maximumFractionDigits: 0})
+              callback: (value) => {
+                return '$' + value.toLocaleString('en-US', {maximumFractionDigits: 0});
+              }
             },
             grid: { color: 'rgba(71, 85, 105, 0.1)' },
-            beginAtZero: false,
             title: {
-              display: true,
-              text: 'Capital (USD)',
-              color: '#94a3b8'
+              display: false
             }
           },
           x: {
-            ticks: { color: '#94a3b8', maxRotation: 45 },
-            grid: { display: false },
-            title: {
+            ticks: { 
+              color: '#94a3b8', 
+              maxRotation: 45,
+              autoSkip: true,
+              maxTicksLimit: dailyLabels.length <= 30 ? dailyLabels.length : 20, // Mostrar todos si ≤30 días
+              callback: function(value, index, ticks) {
+                // Obtener la fecha del label usando el índice original del array
+                const labelText = this.getLabelForValue(value);
+                
+                // Reconstruir fecha completa desde dailyLabels
+                let fullDate = null;
+                dailyLabels.forEach((dl, idx) => {
+                  if (dl.slice(5) === labelText) {
+                    // Parsear manualmente para evitar conversión de zona horaria
+                    const [year, month, day] = dl.split('-').map(Number);
+                    fullDate = new Date(year, month - 1, day);
+                  }
+                });
+                
+                if (!fullDate) return labelText;
+                
+                const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+                const dayName = dayNames[fullDate.getDay()];
+                const dayNum = String(fullDate.getDate()).padStart(2, '0');
+                const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                const monthName = monthNames[fullDate.getMonth()];
+                
+                // Mostrar día de semana + número + mes para claridad
+                return `${dayName} ${dayNum} ${monthName}`;
+              }
+            },
+            grid: { 
               display: true,
-              text: 'Fecha',
-              color: '#94a3b8'
+              color: 'rgba(71, 85, 105, 0.05)' // Grid muy sutil
+            },
+            title: {
+              display: false
             }
           }
         }
       }
     });
+    
+    console.log(`   ✅ Gráfico ${chartKey} renderizado correctamente`);
   }
 
   function renderHourlyPerformance(trades, broker, suffix) {
@@ -1331,40 +1872,186 @@
   // ========================================================================
 
   function renderTable(trades, broker, suffix, maxTrades = 30) {
-    const tbody = document.getElementById(`tbody${suffix}`);
-    if (!tbody) return;
+    const gridDiv = document.getElementById(`grid${suffix}`);
+    if (!gridDiv) return;
     
-    const lastTrades = trades.slice(-maxTrades).reverse();  // Últimos N, más recientes primero
-
-    tbody.innerHTML = lastTrades.map(t => {
-      const plUsd = (t.pl_usd || 0);
-      const plPercent = (t.pl_percent || 0);
-      const isWinner = plUsd > 0;
+    // Filtrar trades según el período seleccionado (currentDays)
+    const now = new Date();
+    let filteredTrades = trades;
+    
+    if (currentDays !== 'all') {
+      const startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - currentDays);
       
-      const dateStr = new Date(t.datetime).toLocaleDateString('es-ES', {
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
+      filteredTrades = trades.filter(t => {
+        if (!t.datetime) return false;
+        const tradeDate = new Date(t.datetime);
+        return tradeDate >= startDate;
       });
       
-      const brokerBadge = broker === 'all' ? `<td class="py-3 px-4"><span class="text-xs px-2 py-1 rounded ${t.broker === 'schwab' ? 'bg-blue-900 text-blue-300' : 'bg-orange-900 text-orange-300'}">${t.broker?.toUpperCase()}</span></td>` : '';
-      
-      return `
-        <tr class="table-row">
-          ${brokerBadge}
-          <td class="py-3 px-4 text-slate-300">${dateStr}</td>
-          <td class="py-3 px-4 font-bold text-emerald-400">${t.symbol}</td>
-          <td class="py-3 px-4">${t.side === 'BUY' ? '📈' : '📉'} ${t.side}</td>
-          <td class="py-3 px-4 text-right">${parseFloat(t.quantity).toFixed(t.broker === 'coinbase' ? 8 : 2)}</td>
-          <td class="py-3 px-4 text-right">$${parseFloat(t.price).toFixed(2)}</td>
-          <td class="py-3 px-4 text-right">$${parseFloat(t.total || t.amount || 0).toFixed(2)}</td>
-          <td class="py-3 px-4 text-right">$${parseFloat(t.fee).toFixed(2)}</td>
-          <td class="py-3 px-4 text-right ${isWinner ? 'gain' : 'loss'}">${isWinner ? '+' : ''}$${Math.abs(plUsd).toFixed(2)}</td>
-          <td class="py-3 px-4 text-right ${isWinner ? 'gain' : 'loss'}">${isWinner ? '+' : ''}${Math.abs(plPercent).toFixed(2)}%</td>
-        </tr>
-      `;
-    }).join('');
+      console.log(`📊 Filtrado de tabla: ${filteredTrades.length} trades de los últimos ${currentDays} días (de ${trades.length} totales)`);
+    }
+    
+    // Ordenar por fecha descendente (más reciente primero)
+    const sortedTrades = [...filteredTrades].sort((a, b) => {
+      return new Date(b.datetime) - new Date(a.datetime);
+    });
+    
+    // AG Grid mostrará TODOS los trades del período con paginación
+    console.log(`📊 AG Grid mostrará ${sortedTrades.length} trades del período con paginación`);
+
+    // Definir columnas de AG Grid
+    const columnDefs = [
+      // Columna de broker solo para la tab "all"
+      ...(broker === 'all' ? [{
+        field: 'broker',
+        headerName: 'Broker',
+        sortable: true,
+        filter: true,
+        width: 100,
+        cellRenderer: (params) => {
+          const brokerName = params.value?.toUpperCase() || '';
+          const isSchwab = params.value === 'schwab';
+          return `<span class="text-xs px-2 py-1 rounded ${isSchwab ? 'bg-blue-900 text-blue-300' : 'bg-orange-900 text-orange-300'}">${brokerName}</span>`;
+        }
+      }] : []),
+      {
+        field: 'datetime',
+        headerName: 'Fecha',
+        sortable: true,
+        filter: true,
+        width: 160,
+        valueFormatter: (params) => {
+          if (!params.value) return '';
+          const date = new Date(params.value);
+          const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+          const dayName = dayNames[date.getDay()];
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const hour = String(date.getHours()).padStart(2, '0');
+          const minute = String(date.getMinutes()).padStart(2, '0');
+          // Formato: Mié 11/06, 14:30
+          return `${dayName} ${month}/${day}, ${hour}:${minute}`;
+        }
+      },
+      {
+        field: 'symbol',
+        headerName: 'Símbolo',
+        sortable: true,
+        filter: true,
+        width: 110,
+        cellStyle: { fontWeight: 'bold', color: '#10b981' }
+      },
+      {
+        field: 'side',
+        headerName: 'Lado',
+        sortable: true,
+        filter: true,
+        width: 100,
+        cellRenderer: (params) => {
+          const icon = params.value === 'BUY' ? '📈' : '📉';
+          const color = params.value === 'BUY' ? 'text-green-400' : 'text-red-400';
+          return `<span class="${color}">${icon} ${params.value}</span>`;
+        }
+      },
+      {
+        field: 'quantity',
+        headerName: 'Cantidad',
+        sortable: true,
+        filter: true,
+        type: 'numericColumn',
+        width: 120,
+        valueFormatter: (params) => {
+          const decimals = params.data.broker === 'coinbase' ? 8 : 2;
+          return formatNumber(parseFloat(params.value || 0), decimals, false);
+        }
+      },
+      {
+        field: 'price',
+        headerName: 'Precio',
+        sortable: true,
+        filter: true,
+        type: 'numericColumn',
+        width: 110,
+        valueFormatter: (params) => formatUSD(parseFloat(params.value || 0), 2, false)
+      },
+      {
+        field: 'total',
+        headerName: 'Total',
+        sortable: true,
+        filter: true,
+        type: 'numericColumn',
+        width: 110,
+        valueGetter: (params) => parseFloat(params.data.total || params.data.amount || 0),
+        valueFormatter: (params) => formatUSD(params.value, 2, false)
+      },
+      {
+        field: 'fee',
+        headerName: 'Fee',
+        sortable: true,
+        filter: true,
+        type: 'numericColumn',
+        width: 90,
+        valueFormatter: (params) => formatUSD(parseFloat(params.value || 0), 2, false)
+      },
+      {
+        field: 'pl_usd',
+        headerName: 'P&L USD',
+        sortable: true,
+        filter: true,
+        type: 'numericColumn',
+        width: 120,
+        cellRenderer: (params) => {
+          const value = params.value || 0;
+          const className = value >= 0 ? 'gain' : 'loss';
+          return `<span class="${className}">${formatUSD(value, 2, true)}</span>`;
+        }
+      },
+      {
+        field: 'pl_percent',
+        headerName: 'P&L %',
+        sortable: true,
+        filter: true,
+        type: 'numericColumn',
+        width: 110,
+        cellRenderer: (params) => {
+          const value = params.value || 0;
+          const className = value >= 0 ? 'gain' : 'loss';
+          return `<span class="${className}">${formatPercent(value, 2, true)}</span>`;
+        }
+      }
+    ];
+
+    // Configuración del grid con paginación
+    const gridOptions = {
+      columnDefs: columnDefs,
+      rowData: sortedTrades,  // TODOS los trades del período
+      defaultColDef: {
+        resizable: true,
+        sortable: true,
+        filter: true
+      },
+      domLayout: 'normal',
+      enableCellTextSelection: true,
+      animateRows: true,
+      rowSelection: 'single',
+      pagination: true,
+      paginationPageSize: 50,  // 50 trades por página
+      paginationPageSizeSelector: [25, 50, 100, 200],
+      onRowClicked: (event) => {
+        console.log('📊 Trade seleccionado:', event.data);
+      }
+    };
+
+    // Destruir grid existente si lo hay
+    const gridKey = `grid-${broker}`;
+    if (gridsMap[gridKey]) {
+      gridsMap[gridKey].destroy();
+    }
+
+    // Crear nuevo grid
+    gridsMap[gridKey] = agGrid.createGrid(gridDiv, gridOptions);
+    console.log(`✅ AG Grid inicializado para ${broker} con ${sortedTrades.length} trades (paginación: 50 por página)`);
   }
 
   // ========================================================================
@@ -1446,10 +2133,159 @@
     // Activar el seleccionado
     document.getElementById(`tab-btn-${tab}`).classList.add('active');
     document.getElementById(`tab-${tab}`).classList.add('active');
+    
+    // Actualizar broker activo y stats counter
+    currentBroker = tab;
+    updateStatsCounter();
   }
 
   function refreshData() {
     requestData();  // Usar WebSocket
+  }
+
+  /**
+   * Formatear input de meta para mostrar con comas
+   */
+  function formatMetaInput(broker) {
+    const input = document.getElementById(`meta-capital-${broker}`);
+    if (!input) return;
+    
+    const value = parseFloat(input.value.replace(/,/g, ''));
+    if (!isNaN(value)) {
+      input.value = value.toLocaleString('en-US');
+    }
+  }
+
+  /**
+   * Quitar formato de comas para editar
+   */
+  function unformatMetaInput(broker) {
+    const input = document.getElementById(`meta-capital-${broker}`);
+    if (!input) return;
+    
+    const value = parseFloat(input.value.replace(/,/g, ''));
+    if (!isNaN(value)) {
+      input.value = value;
+    }
+  }
+
+  /**
+   * Restaurar fecha inicial al primer trade
+   */
+  function restoreInitialDate(broker) {
+    const data = broker === 'schwab' ? schwabData : (broker === 'coinbase' ? coinbaseData : allData);
+    if (!data || !data.trades || data.trades.length === 0) return;
+    
+    // Encontrar el trade más antiguo
+    const firstTrade = data.trades.reduce((oldest, trade) => {
+      return trade.datetime < oldest.datetime ? trade : oldest;
+    });
+    
+    const firstDate = firstTrade.datetime.split('T')[0];
+    const input = document.getElementById(`fecha-inicial-${broker}`);
+    if (input) {
+      input.value = firstDate;
+      updateCapitalGoal(broker);
+      console.log(`✅ Fecha inicial restaurada a: ${firstDate}`);
+    }
+  }
+
+  /**
+   * Actualizar el cálculo de progreso cuando el usuario cambia la meta o fecha
+   */
+  function updateCapitalGoal(broker) {
+    // Obtener los datos actuales del broker
+    const data = broker === 'schwab' ? schwabData : (broker === 'coinbase' ? coinbaseData : allData);
+    if (!data) return;
+    
+    const currentCapital = data.capital?.current || 5000;
+    const metaInput = document.getElementById(`meta-capital-${broker}`);
+    const metaCapital = metaInput ? parseFloat(metaInput.value.replace(/,/g, '')) : 25000;
+    
+    // Recalcular progreso
+    const progressPct = Math.min((currentCapital / metaCapital) * 100, 100);
+    document.getElementById(`progress-pct-${broker}`).textContent = `${progressPct.toFixed(1)}%`;
+    
+    // Texto corto de progreso
+    const remaining = metaCapital - currentCapital;
+    const progressTextShort = remaining > 0 ? `${formatUSD(remaining, 0, false)}` : '¡Alcanzada!';
+    const progressTextShortElement = document.getElementById(`progress-text-short-${broker}`);
+    if (progressTextShortElement) {
+      progressTextShortElement.textContent = progressTextShort;
+    }
+    
+    // Texto largo de progreso
+    const progressText = remaining > 0 
+      ? `${formatUSD(remaining, 2, false)}`
+      : `+${formatUSD(Math.abs(remaining), 2, false)}`;
+    document.getElementById(`progress-text-${broker}`).textContent = progressText;
+    
+    // Calcular días restantes y transcurridos
+    const fechaInicial = document.getElementById(`fecha-inicial-${broker}`)?.value || '2025-10-28';
+    const fechaMeta = document.getElementById(`meta-fecha-${broker}`)?.value || '2026-12-31';
+    const today = new Date();
+    const startDate = new Date(fechaInicial);
+    const endDate = new Date(fechaMeta);
+    
+    const daysElapsed = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
+    const daysRemaining = Math.floor((endDate - today) / (1000 * 60 * 60 * 24));
+    const totalDays = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24));
+    
+    const daysRemainingElement = document.getElementById(`days-remaining-${broker}`);
+    const daysElapsedElement = document.getElementById(`days-elapsed-${broker}`);
+    
+    if (daysRemainingElement) {
+      daysRemainingElement.textContent = daysRemaining > 0 ? daysRemaining : '0';
+    }
+    
+    if (daysElapsedElement) {
+      daysElapsedElement.textContent = `${daysElapsed} días transcurridos`;
+    }
+    
+    // Guardar en localStorage para persistir entre sesiones
+    const settings = {
+      metaCapital: metaCapital,
+      metaFecha: fechaMeta,
+      fechaInicial: fechaInicial
+    };
+    localStorage.setItem(`tradeplus-goal-${broker}`, JSON.stringify(settings));
+    
+    console.log(`✅ Meta actualizada para ${broker}: $${metaCapital.toLocaleString()} - ${settings.metaFecha}`);
+    
+    // Re-renderizar gráfica con nuevo rango
+    const suffix = broker === 'schwab' ? '-schwab' : (broker === 'coinbase' ? '-coinbase' : '-all');
+    renderCapitalChart(data, broker, suffix);
+  }
+
+  /**
+   * Cargar metas guardadas desde localStorage al iniciar
+   */
+  function loadSavedGoals() {
+    ['schwab', 'coinbase', 'all'].forEach(broker => {
+      const saved = localStorage.getItem(`tradeplus-goal-${broker}`);
+      if (saved) {
+        try {
+          const settings = JSON.parse(saved);
+          const metaInput = document.getElementById(`meta-capital-${broker}`);
+          const fechaMetaInput = document.getElementById(`meta-fecha-${broker}`);
+          const fechaInicialInput = document.getElementById(`fecha-inicial-${broker}`);
+          
+          if (metaInput && settings.metaCapital) {
+            metaInput.value = settings.metaCapital.toLocaleString('en-US');
+          }
+          if (fechaMetaInput && settings.metaFecha) {
+            fechaMetaInput.value = settings.metaFecha;
+          }
+          if (fechaInicialInput && settings.fechaInicial) {
+            fechaInicialInput.value = settings.fechaInicial;
+          }
+          
+          console.log(`✅ Meta cargada para ${broker}: $${settings.metaCapital?.toLocaleString()} - ${settings.metaFecha}`);
+        } catch (e) {
+          console.error(`Error cargando meta para ${broker}:`, e);
+        }
+      }
+    });
   }
 
   // ========================================================================
@@ -1849,6 +2685,11 @@
   // INIT - Conectar WebSocket al cargar página
   window.addEventListener('load', () => {
     console.log('🚀 Iniciando TradePlus Journal con WebSocket');
+    
+    // Cargar metas guardadas
+    loadSavedGoals();
+    
+    // Conectar WebSocket
     connectWebSocket();
     
     // Configurar event listeners del modal (después de que el DOM esté listo)

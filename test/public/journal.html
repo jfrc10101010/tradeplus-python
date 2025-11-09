@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -438,16 +438,10 @@
       <canvas id="chart-capital-schwab" height="120"></canvas>
     </div>
 
-    <!-- P&L Charts -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-      <div class="chart-card">
-        <h3 class="text-lg font-bold mb-4">📊 P&L Acumulado (Diario)</h3>
-        <canvas id="chart-pl-daily-schwab" height="250"></canvas>
-      </div>
-      <div class="chart-card">
-        <h3 class="text-lg font-bold mb-4">🎯 Top Símbolos</h3>
-        <canvas id="chart-symbols-schwab" height="250"></canvas>
-      </div>
+    <!-- AG Grid: Análisis Detallado por Símbolo -->
+    <div class="chart-card mb-8">
+      <h3 class="text-lg font-bold mb-4">🎯 Análisis Detallado por Símbolo (usa filtros para ver operaciones específicas)</h3>
+      <div id="grid-top-symbols-schwab" class="ag-theme-alpine-dark" style="height: 500px; width: 100%;"></div>
     </div>
 
     <!-- Trades Table -->
@@ -1243,9 +1237,8 @@
     // Actualizar cálculo de días restantes y gráfico de capital (esto llama a renderCapitalChart internamente)
     updateCapitalGoal(broker);
 
-    // Renderizar otros charts
-    renderPLDailyChart(data, broker, suffix);
-    renderSymbolsChart(data, broker, suffix);
+    // Renderizar AG Grid de análisis con Master/Detail
+    renderTopSymbolsGrid(data, broker, suffix);
     renderHourlyPerformance(data.trades || [], broker, suffix);
 
     // Tabla
@@ -1761,110 +1754,200 @@
     });
   }
 
-  function renderPLDailyChart(data, broker, suffix) {
-    const evolution = (data.capital?.evolution || []).slice(-20);
-    const ctx = document.getElementById(`chart-pl-daily${suffix}`);
-    if (!ctx) return;
+  function renderTopSymbolsGrid(data, broker, suffix) {
+    const gridDiv = document.getElementById(`grid-top-symbols${suffix}`);
+    if (!gridDiv) return;
     
-    const chartKey = `pl-daily-${broker}`;
-    if (chartsMap[chartKey]) chartsMap[chartKey].destroy();
-
-    chartsMap[chartKey] = new Chart(ctx.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: evolution.map(d => d.date.slice(5)),
-        datasets: [{
-          label: 'P&L Diario (USD)',
-          data: evolution.map(d => d.pl_daily),
-          backgroundColor: evolution.map(d => d.pl_daily >= 0 ? '#10b981' : '#ef4444'),
-          borderRadius: 6,
-          borderSkipped: false
-        }]
+    // Convertir trades a formato plano con datos agregados por símbolo
+    const flatData = [];
+    const symbolStats = {};
+    
+    (data.trades || []).forEach(trade => {
+      if (!trade.is_closed) return;
+      
+      const symbol = trade.symbol;
+      if (!symbolStats[symbol]) {
+        symbolStats[symbol] = {
+          pl_usd: 0,
+          cost_basis: 0,
+          count: 0,
+          avg_price: 0,
+          total_quantity: 0,
+          first_date: trade.datetime,
+          last_date: trade.datetime
+        };
+      }
+      
+      symbolStats[symbol].pl_usd += (trade.pl_usd || 0);
+      symbolStats[symbol].cost_basis += Math.abs(trade.price * trade.quantity);
+      symbolStats[symbol].count += 1;
+      symbolStats[symbol].total_quantity += trade.quantity;
+      
+      // Actualizar fechas
+      if (trade.datetime < symbolStats[symbol].first_date) {
+        symbolStats[symbol].first_date = trade.datetime;
+      }
+      if (trade.datetime > symbolStats[symbol].last_date) {
+        symbolStats[symbol].last_date = trade.datetime;
+      }
+      
+      // Añadir fila individual con datos del símbolo agregados
+      const stats = symbolStats[symbol];
+      const pl_percent = stats.cost_basis > 0 ? (stats.pl_usd / stats.cost_basis * 100) : 0;
+      
+      flatData.push({
+        // Datos del trade individual
+        datetime: trade.datetime,
+        side: trade.side,
+        price: trade.price,
+        quantity: trade.quantity,
+        trade_pl_usd: trade.pl_usd || 0,
+        
+        // Datos agregados del símbolo
+        symbol: symbol,
+        symbol_count: stats.count,
+        symbol_pl_usd: stats.pl_usd,
+        symbol_pl_percent: pl_percent,
+        symbol_total_quantity: stats.total_quantity,
+        symbol_avg_price: stats.cost_basis / stats.total_quantity
+      });
+    });
+    
+    const columnDefs = [
+      {
+        field: 'symbol',
+        headerName: 'Símbolo',
+        sortable: true,
+        filter: true,
+        width: 120,
+        pinned: 'left',
+        cellStyle: { fontWeight: 'bold', color: '#10b981', backgroundColor: '#1e293b' }
       },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        plugins: { 
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              title: (context) => {
-                const idx = context[0].dataIndex;
-                return evolution[idx].date;
-              },
-              label: (context) => {
-                const value = context.parsed.x;
-                return `P&L del día: $${value.toFixed(2)}`;
-              }
-            }
-          }
-        },
-        scales: {
-          x: {
-            ticks: { 
-              color: '#94a3b8',
-              callback: (value) => '$' + value.toFixed(0)
-            },
-            grid: { color: 'rgba(71, 85, 105, 0.1)' },
-            title: {
-              display: true,
-              text: 'P&L (USD)',
-              color: '#94a3b8'
-            }
-          },
-          y: {
-            ticks: { color: '#94a3b8', font: { size: 11 } },
-            grid: { display: false },
-            title: {
-              display: true,
-              text: 'Fecha',
-              color: '#94a3b8'
-            }
-          }
+      {
+        field: 'symbol_count',
+        headerName: '# Ops',
+        sortable: true,
+        filter: true,
+        type: 'numericColumn',
+        width: 90,
+        cellStyle: { fontWeight: 'bold', color: '#3b82f6' }
+      },
+      {
+        field: 'symbol_pl_usd',
+        headerName: 'P&L Total',
+        sortable: true,
+        filter: true,
+        type: 'numericColumn',
+        width: 140,
+        cellRenderer: (params) => {
+          const value = params.value || 0;
+          const className = value >= 0 ? 'gain' : 'loss';
+          return `<span class="${className}">${formatUSD(value, 2, true)}</span>`;
+        }
+      },
+      {
+        field: 'symbol_pl_percent',
+        headerName: 'P&L %',
+        sortable: true,
+        filter: true,
+        type: 'numericColumn',
+        width: 110,
+        cellRenderer: (params) => {
+          const value = params.value || 0;
+          const className = value >= 0 ? 'gain' : 'loss';
+          return `<span class="${className}">${formatPercent(value, 2, true)}</span>`;
+        }
+      },
+      {
+        field: 'datetime',
+        headerName: 'Fecha/Hora',
+        sortable: true,
+        filter: true,
+        width: 160,
+        valueFormatter: (params) => {
+          if (!params.value) return '';
+          const date = new Date(params.value);
+          const weekday = date.toLocaleDateString('es-ES', { weekday: 'short' });
+          const day = String(date.getDate()).padStart(2, '0');
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const hour = String(date.getHours()).padStart(2, '0');
+          const minute = String(date.getMinutes()).padStart(2, '0');
+          return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)} ${day}/${month}, ${hour}:${minute}`;
+        }
+      },
+      {
+        field: 'side',
+        headerName: 'Lado',
+        sortable: true,
+        filter: true,
+        width: 90,
+        cellRenderer: (params) => {
+          const icon = params.value === 'BUY' ? '📈' : '📉';
+          const color = params.value === 'BUY' ? 'text-green-400' : 'text-red-400';
+          return `<span class="${color}">${icon} ${params.value}</span>`;
+        }
+      },
+      {
+        field: 'price',
+        headerName: 'Precio',
+        sortable: true,
+        filter: true,
+        type: 'numericColumn',
+        width: 110,
+        valueFormatter: (params) => formatUSD(params.value, 2, false)
+      },
+      {
+        field: 'quantity',
+        headerName: 'Cantidad',
+        sortable: true,
+        filter: true,
+        type: 'numericColumn',
+        width: 110
+      },
+      {
+        field: 'trade_pl_usd',
+        headerName: 'P&L Op',
+        sortable: true,
+        filter: true,
+        type: 'numericColumn',
+        width: 120,
+        cellRenderer: (params) => {
+          const value = params.value || 0;
+          const className = value >= 0 ? 'gain' : 'loss';
+          return `<span class="${className}">${formatUSD(value, 2, true)}</span>`;
         }
       }
-    });
-  }
-
-  function renderSymbolsChart(data, broker, suffix) {
-    const symbols = (data.symbols || {});
-    const top5 = Object.entries(symbols)
-      .sort((a, b) => Math.abs(b[1].pl_usd) - Math.abs(a[1].pl_usd))
-      .slice(0, 5);
-
-    const ctx = document.getElementById(`chart-symbols${suffix}`);
-    if (!ctx) return;
+    ];
     
-    const chartKey = `symbols-${broker}`;
-    if (chartsMap[chartKey]) chartsMap[chartKey].destroy();
-
-    chartsMap[chartKey] = new Chart(ctx.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: top5.map(s => s[0]),
-        datasets: [{
-          label: 'P&L USD',
-          data: top5.map(s => s[1].pl_usd),
-          backgroundColor: top5.map(s => s[1].pl_usd >= 0 ? '#10b981' : '#ef4444'),
-          borderRadius: 6
-        }]
+    const gridOptions = {
+      columnDefs: columnDefs,
+      rowData: flatData,
+      defaultColDef: {
+        resizable: true,
+        sortable: true,
+        filter: true
       },
-      options: {
-        indexAxis: 'x',
-        responsive: true,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: {
-            ticks: { color: '#94a3b8' },
-            grid: { color: 'rgba(71, 85, 105, 0.1)' }
-          },
-          x: {
-            ticks: { color: '#94a3b8' },
-            grid: { display: false }
-          }
-        }
-      }
-    });
+      domLayout: 'normal',
+      enableCellTextSelection: true,
+      animateRows: true,
+      pagination: true,
+      paginationPageSize: 50,
+      paginationPageSizeSelector: [25, 50, 100, 200],
+      rowSelection: 'single'
+    };
+    
+    const gridKey = `grid-top-symbols-${broker}`;
+    
+    // ✅ Usar AG Grid API en lugar de destroy/create
+    if (gridsMap[gridKey]) {
+      // Grid ya existe, solo actualizar datos con transición suave
+      gridsMap[gridKey].setGridOption('rowData', flatData);
+      console.log(`🔄 Grid Top Símbolos actualizado para ${broker} con ${flatData.length} operaciones`);
+    } else {
+      // Primera vez, crear el grid
+      gridsMap[gridKey] = agGrid.createGrid(gridDiv, gridOptions);
+      console.log(`✅ Grid Top Símbolos inicializado para ${broker} con ${flatData.length} operaciones (${Object.keys(symbolStats).length} símbolos)`);
+    }
   }
 
   // ========================================================================
@@ -2043,15 +2126,17 @@
       }
     };
 
-    // Destruir grid existente si lo hay
+    // ✅ Usar AG Grid API en lugar de destroy/create
     const gridKey = `grid-${broker}`;
     if (gridsMap[gridKey]) {
-      gridsMap[gridKey].destroy();
+      // Grid ya existe, solo actualizar datos
+      gridsMap[gridKey].setGridOption('rowData', sortedTrades);
+      console.log(`🔄 AG Grid actualizado para ${broker} con ${sortedTrades.length} trades`);
+    } else {
+      // Primera vez, crear el grid
+      gridsMap[gridKey] = agGrid.createGrid(gridDiv, gridOptions);
+      console.log(`✅ AG Grid inicializado para ${broker} con ${sortedTrades.length} trades (paginación: 50 por página)`);
     }
-
-    // Crear nuevo grid
-    gridsMap[gridKey] = agGrid.createGrid(gridDiv, gridOptions);
-    console.log(`✅ AG Grid inicializado para ${broker} con ${sortedTrades.length} trades (paginación: 50 por página)`);
   }
 
   // ========================================================================

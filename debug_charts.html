@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Charts</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+</head>
+<body>
+    <h1>Debug Charts - Diagnóstico</h1>
+    
+    <div style="margin: 20px;">
+        <h3>Estado de la conexión:</h3>
+        <div id="status">Conectando...</div>
+        <div id="websocket-status">WebSocket: Desconectado</div>
+        <div id="data-received">Datos: No recibidos</div>
+        <div id="chartjs-status">Chart.js: Verificando...</div>
+    </div>
+    
+    <div style="margin: 20px;">
+        <h3>Prueba de Chart.js:</h3>
+        <canvas id="test-chart" width="400" height="200"></canvas>
+    </div>
+    
+    <div style="margin: 20px;">
+        <h3>Datos recibidos:</h3>
+        <pre id="data-preview" style="background: #f0f0f0; padding: 10px; max-height: 300px; overflow-y: auto;">Esperando datos...</pre>
+    </div>
+    
+    <script>
+        // Verificar Chart.js
+        setTimeout(() => {
+            if (typeof Chart !== 'undefined') {
+                document.getElementById('chartjs-status').textContent = 'Chart.js: ✅ Disponible';
+                
+                // Crear gráfico de prueba
+                const ctx = document.getElementById('test-chart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May'],
+                        datasets: [{
+                            label: 'Prueba',
+                            data: [10, 20, 15, 25, 30],
+                            borderColor: 'blue',
+                            fill: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Gráfico de Prueba - Chart.js Funcionando'
+                            }
+                        }
+                    }
+                });
+            } else {
+                document.getElementById('chartjs-status').textContent = 'Chart.js: ❌ No disponible';
+            }
+        }, 1000);
+        
+        // Conectar WebSocket
+        const wsUrl = `ws://${window.location.host}/ws/journal`;
+        console.log('🔌 Conectando a WebSocket:', wsUrl);
+        document.getElementById('status').textContent = 'Conectando a WebSocket...';
+        
+        const ws = new WebSocket(wsUrl);
+        
+        ws.onopen = () => {
+            console.log('✅ WebSocket conectado');
+            document.getElementById('websocket-status').textContent = 'WebSocket: ✅ Conectado';
+            document.getElementById('status').textContent = 'Conexión establecida, solicitando datos...';
+            
+            // Solicitar datos
+            ws.send(JSON.stringify({ broker: 'all', days: 30 }));
+            ws.send(JSON.stringify({ broker: 'schwab', days: 30 }));
+            ws.send(JSON.stringify({ broker: 'coinbase', days: 30 }));
+        };
+        
+        ws.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                console.log('📨 Mensaje recibido:', message);
+                document.getElementById('data-received').textContent = `Datos: ✅ Recibidos (${message.broker || 'all'})`;
+                
+                // Mostrar preview de datos
+                document.getElementById('data-preview').textContent = JSON.stringify(message, null, 2);
+                
+                // Verificar si hay datos de evolución
+                if (message.data) {
+                    if (message.data.evolution) {
+                        console.log('📊 Evolution data:', message.data.evolution.length, 'puntos');
+                        document.getElementById('status').textContent += ' | Evolution: ✅';
+                    } else {
+                        console.log('⚠️ No hay datos de evolution');
+                        document.getElementById('status').textContent += ' | Evolution: ❌';
+                    }
+                    
+                    if (message.data.stats) {
+                        console.log('📈 Stats data:', message.data.stats);
+                        document.getElementById('status').textContent += ' | Stats: ✅';
+                    } else {
+                        console.log('⚠️ No hay datos de stats');
+                        document.getElementById('status').textContent += ' | Stats: ❌';
+                    }
+                    
+                    if (message.data.trades) {
+                        console.log('💼 Trades data:', message.data.trades.length, 'trades');
+                        document.getElementById('status').textContent += ' | Trades: ✅';
+                    } else {
+                        console.log('⚠️ No hay datos de trades');
+                        document.getElementById('status').textContent += ' | Trades: ❌';
+                    }
+                }
+                
+            } catch (error) {
+                console.error('❌ Error procesando mensaje:', error);
+                document.getElementById('status').textContent = 'Error procesando mensaje: ' + error.message;
+            }
+        };
+        
+        ws.onerror = (error) => {
+            console.error('❌ WebSocket error:', error);
+            document.getElementById('websocket-status').textContent = 'WebSocket: ❌ Error';
+            document.getElementById('status').textContent = 'Error de conexión WebSocket';
+        };
+        
+        ws.onclose = () => {
+            console.log('🔌 WebSocket cerrado');
+            document.getElementById('websocket-status').textContent = 'WebSocket: 🔌 Cerrado';
+        };
+    </script>
+</body>
+</html>

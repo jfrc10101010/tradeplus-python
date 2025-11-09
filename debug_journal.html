@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Journal</title>
+</head>
+<body>
+    <h1>Debug Journal - Consola</h1>
+    <div id="status">Verificando conexión...</div>
+    <div id="websocket-status">WebSocket: Desconectado</div>
+    <div id="data-status">Datos: No recibidos</div>
+    
+    <script>
+        // Verificar conexión WebSocket
+        const wsUrl = `ws://${window.location.host}/ws/journal`;
+        console.log('🔌 Intentando conectar a:', wsUrl);
+        
+        const ws = new WebSocket(wsUrl);
+        
+        ws.onopen = () => {
+            console.log('✅ WebSocket conectado exitosamente');
+            document.getElementById('websocket-status').textContent = 'WebSocket: Conectado';
+            
+            // Solicitar datos
+            ws.send(JSON.stringify({ broker: 'all', days: 30 }));
+            ws.send(JSON.stringify({ broker: 'schwab', days: 30 }));
+            ws.send(JSON.stringify({ broker: 'coinbase', days: 30 }));
+        };
+        
+        ws.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                console.log('📨 Datos recibidos:', message);
+                document.getElementById('data-status').textContent = `Datos: Recibidos (${message.broker || 'all'})`;
+                
+                // Verificar si hay datos de evolución para gráficos
+                if (message.data && message.data.evolution) {
+                    console.log('📊 Datos de evolución encontrados:', message.data.evolution.length, 'puntos');
+                }
+                
+                if (message.data && message.data.stats) {
+                    console.log('📈 Stats encontrados:', message.data.stats);
+                }
+                
+            } catch (error) {
+                console.error('❌ Error procesando mensaje:', error);
+            }
+        };
+        
+        ws.onerror = (error) => {
+            console.error('❌ Error WebSocket:', error);
+            document.getElementById('websocket-status').textContent = 'WebSocket: Error';
+        };
+        
+        ws.onclose = () => {
+            console.log('🔌 WebSocket cerrado');
+            document.getElementById('websocket-status').textContent = 'WebSocket: Cerrado';
+        };
+        
+        // Verificar si Chart.js está cargado
+        setTimeout(() => {
+            if (typeof Chart !== 'undefined') {
+                console.log('✅ Chart.js está cargado correctamente');
+            } else {
+                console.error('❌ Chart.js NO está cargado');
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

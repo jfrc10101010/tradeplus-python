@@ -438,40 +438,10 @@
       <canvas id="chart-capital-schwab" height="120"></canvas>
     </div>
 
-    <!-- AG Grid: Top por P&L USD (mejor → peor) -->
+    <!-- AG Grid: Análisis Detallado por Símbolo -->
     <div class="chart-card mb-8">
-      <h3 class="text-lg font-bold mb-4">📊 Top por P&L USD (mejor → peor)</h3>
-      <p class="text-sm text-slate-400 mb-4">
-        💡 Click en un símbolo para ver los trades detallados
-      </p>
-      <div id="grid-top-pl-schwab" class="ag-theme-alpine-dark" style="height: 500px; width: 100%;"></div>
-    </div>
-
-    <!-- AG Grid: Top por Cantidad de Operaciones -->
-    <div class="chart-card mb-8">
-      <h3 class="text-lg font-bold mb-4">📈 Top por Cantidad de Operaciones</h3>
-      <p class="text-sm text-slate-400 mb-4">
-        💡 Click en un símbolo para ver los trades detallados
-      </p>
-      <div id="grid-top-ops-schwab" class="ag-theme-alpine-dark" style="height: 500px; width: 100%;"></div>
-    </div>
-
-    <!-- AG Grid: Historial Agrupado por Fecha -->
-    <div class="chart-card mb-8">
-      <h3 class="text-lg font-bold mb-4">� Historial por Fecha</h3>
-      <p class="text-sm text-slate-400 mb-4">
-        💡 Click en una fecha para ver los trades de ese día
-      </p>
-      <div id="grid-dates-schwab" class="ag-theme-alpine-dark" style="height: 400px;"></div>
-    </div>
-
-    <!-- AG Grid: Historial Agrupado por Símbolo -->
-    <div class="chart-card mb-8">
-      <h3 class="text-lg font-bold mb-4">📊 Historial por Símbolo</h3>
-      <p class="text-sm text-slate-400 mb-4">
-        💡 Click en un símbolo para ver los trades de ese símbolo
-      </p>
-      <div id="grid-symbols-schwab" class="ag-theme-alpine-dark" style="height: 400px;"></div>
+      <h3 class="text-lg font-bold mb-4">🎯 Análisis Detallado por Símbolo (usa filtros para ver operaciones específicas)</h3>
+      <div id="grid-top-symbols-schwab" class="ag-theme-alpine-dark" style="height: 500px; width: 100%;"></div>
     </div>
 
     <!-- Trades Table -->
@@ -1124,12 +1094,8 @@
   // ========================================================================
 
   function renderTab(broker) {
-    console.log(`🔍 renderTab llamado para ${broker}`);
     const data = broker === 'schwab' ? schwabData : (broker === 'coinbase' ? coinbaseData : allData);
-    if (!data || data.error) {
-      console.warn(`⚠️ No hay datos para ${broker}`);
-      return;
-    }
+    if (!data || data.error) return;
 
     const suffix = broker === 'schwab' ? '-schwab' : (broker === 'coinbase' ? '-coinbase' : '-all');
 
@@ -1271,15 +1237,8 @@
     // Actualizar cálculo de días restantes y gráfico de capital (esto llama a renderCapitalChart internamente)
     updateCapitalGoal(broker);
 
-    // Renderizar los grids
-    console.log(`🔍 Renderizando grids para ${broker}`);
-    renderTopPLGrid(data.trades || [], broker, suffix);
-    renderTopOpsGrid(data.trades || [], broker, suffix);
-    renderDatesGrid(data.trades || [], broker, suffix);
-    renderSymbolsGrid(data.trades || [], broker, suffix);
-    renderTable(data.trades || [], broker, suffix, 30); // Grid principal con todos los trades
-    renderSymbolDetailsGrid([], broker, suffix); // Grid de detalles inicialmente vacío
-    console.log(`✅ Grids renderizados para ${broker}`);
+    // Renderizar AG Grid de análisis con Master/Detail
+    renderTopSymbolsGrid(data, broker, suffix);
     renderHourlyPerformance(data.trades || [], broker, suffix);
 
     // Tabla
@@ -1795,7 +1754,201 @@
     });
   }
 
-  
+  function renderTopSymbolsGrid(data, broker, suffix) {
+    const gridDiv = document.getElementById(`grid-top-symbols${suffix}`);
+    if (!gridDiv) return;
+    
+    // Convertir trades a formato plano con datos agregados por símbolo
+    const flatData = [];
+    const symbolStats = {};
+    
+    (data.trades || []).forEach(trade => {
+      if (!trade.is_closed) return;
+      
+      const symbol = trade.symbol;
+      if (!symbolStats[symbol]) {
+        symbolStats[symbol] = {
+          pl_usd: 0,
+          cost_basis: 0,
+          count: 0,
+          avg_price: 0,
+          total_quantity: 0,
+          first_date: trade.datetime,
+          last_date: trade.datetime
+        };
+      }
+      
+      symbolStats[symbol].pl_usd += (trade.pl_usd || 0);
+      symbolStats[symbol].cost_basis += Math.abs(trade.price * trade.quantity);
+      symbolStats[symbol].count += 1;
+      symbolStats[symbol].total_quantity += trade.quantity;
+      
+      // Actualizar fechas
+      if (trade.datetime < symbolStats[symbol].first_date) {
+        symbolStats[symbol].first_date = trade.datetime;
+      }
+      if (trade.datetime > symbolStats[symbol].last_date) {
+        symbolStats[symbol].last_date = trade.datetime;
+      }
+      
+      // Añadir fila individual con datos del símbolo agregados
+      const stats = symbolStats[symbol];
+      const pl_percent = stats.cost_basis > 0 ? (stats.pl_usd / stats.cost_basis * 100) : 0;
+      
+      flatData.push({
+        // Datos del trade individual
+        datetime: trade.datetime,
+        side: trade.side,
+        price: trade.price,
+        quantity: trade.quantity,
+        trade_pl_usd: trade.pl_usd || 0,
+        
+        // Datos agregados del símbolo
+        symbol: symbol,
+        symbol_count: stats.count,
+        symbol_pl_usd: stats.pl_usd,
+        symbol_pl_percent: pl_percent,
+        symbol_total_quantity: stats.total_quantity,
+        symbol_avg_price: stats.cost_basis / stats.total_quantity
+      });
+    });
+    
+    const columnDefs = [
+      {
+        field: 'symbol',
+        headerName: 'Símbolo',
+        sortable: true,
+        filter: true,
+        width: 120,
+        pinned: 'left',
+        cellStyle: { fontWeight: 'bold', color: '#10b981', backgroundColor: '#1e293b' }
+      },
+      {
+        field: 'symbol_count',
+        headerName: '# Ops',
+        sortable: true,
+        filter: true,
+        type: 'numericColumn',
+        width: 90,
+        cellStyle: { fontWeight: 'bold', color: '#3b82f6' }
+      },
+      {
+        field: 'symbol_pl_usd',
+        headerName: 'P&L Total',
+        sortable: true,
+        filter: true,
+        type: 'numericColumn',
+        width: 140,
+        cellRenderer: (params) => {
+          const value = params.value || 0;
+          const className = value >= 0 ? 'gain' : 'loss';
+          return `<span class="${className}">${formatUSD(value, 2, true)}</span>`;
+        }
+      },
+      {
+        field: 'symbol_pl_percent',
+        headerName: 'P&L %',
+        sortable: true,
+        filter: true,
+        type: 'numericColumn',
+        width: 110,
+        cellRenderer: (params) => {
+          const value = params.value || 0;
+          const className = value >= 0 ? 'gain' : 'loss';
+          return `<span class="${className}">${formatPercent(value, 2, true)}</span>`;
+        }
+      },
+      {
+        field: 'datetime',
+        headerName: 'Fecha/Hora',
+        sortable: true,
+        filter: true,
+        width: 160,
+        valueFormatter: (params) => {
+          if (!params.value) return '';
+          const date = new Date(params.value);
+          const weekday = date.toLocaleDateString('es-ES', { weekday: 'short' });
+          const day = String(date.getDate()).padStart(2, '0');
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const hour = String(date.getHours()).padStart(2, '0');
+          const minute = String(date.getMinutes()).padStart(2, '0');
+          return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)} ${day}/${month}, ${hour}:${minute}`;
+        }
+      },
+      {
+        field: 'side',
+        headerName: 'Lado',
+        sortable: true,
+        filter: true,
+        width: 90,
+        cellRenderer: (params) => {
+          const icon = params.value === 'BUY' ? '📈' : '📉';
+          const color = params.value === 'BUY' ? 'text-green-400' : 'text-red-400';
+          return `<span class="${color}">${icon} ${params.value}</span>`;
+        }
+      },
+      {
+        field: 'price',
+        headerName: 'Precio',
+        sortable: true,
+        filter: true,
+        type: 'numericColumn',
+        width: 110,
+        valueFormatter: (params) => formatUSD(params.value, 2, false)
+      },
+      {
+        field: 'quantity',
+        headerName: 'Cantidad',
+        sortable: true,
+        filter: true,
+        type: 'numericColumn',
+        width: 110
+      },
+      {
+        field: 'trade_pl_usd',
+        headerName: 'P&L Op',
+        sortable: true,
+        filter: true,
+        type: 'numericColumn',
+        width: 120,
+        cellRenderer: (params) => {
+          const value = params.value || 0;
+          const className = value >= 0 ? 'gain' : 'loss';
+          return `<span class="${className}">${formatUSD(value, 2, true)}</span>`;
+        }
+      }
+    ];
+    
+    const gridOptions = {
+      columnDefs: columnDefs,
+      rowData: flatData,
+      defaultColDef: {
+        resizable: true,
+        sortable: true,
+        filter: true
+      },
+      domLayout: 'normal',
+      enableCellTextSelection: true,
+      animateRows: true,
+      pagination: true,
+      paginationPageSize: 50,
+      paginationPageSizeSelector: [25, 50, 100, 200],
+      rowSelection: 'single'
+    };
+    
+    const gridKey = `grid-top-symbols-${broker}`;
+    
+    // ✅ Usar AG Grid API en lugar de destroy/create
+    if (gridsMap[gridKey]) {
+      // Grid ya existe, solo actualizar datos con transición suave
+      gridsMap[gridKey].setGridOption('rowData', flatData);
+      console.log(`🔄 Grid Top Símbolos actualizado para ${broker} con ${flatData.length} operaciones`);
+    } else {
+      // Primera vez, crear el grid
+      gridsMap[gridKey] = agGrid.createGrid(gridDiv, gridOptions);
+      console.log(`✅ Grid Top Símbolos inicializado para ${broker} con ${flatData.length} operaciones (${Object.keys(symbolStats).length} símbolos)`);
+    }
+  }
 
   // ========================================================================
   // TABLA DE TRADES
@@ -1922,7 +2075,7 @@
         filter: true,
         type: 'numericColumn',
         width: 90,
-        valueFormatter: (params) => formatUSD(parseFloat(params.value), 2, false)
+        valueFormatter: (params) => formatUSD(parseFloat(params.value || 0), 2, false)
       },
       {
         field: 'pl_usd',
@@ -2187,814 +2340,6 @@
     // Re-renderizar gráfica con nuevo rango
     const suffix = broker === 'schwab' ? '-schwab' : (broker === 'coinbase' ? '-coinbase' : '-all');
     renderCapitalChart(data, broker, suffix);
-  }
-
-  // ========================================================================
-  // FUNCIÓN MAESTRA: Agrupamiento Doble - Fecha + Símbolo
-  // ========================================================================
-  
-  function groupTradesByDateAndSymbol(trades, days = 30) {
-    if (!trades || trades.length === 0) return [];
-    
-    // Filtrar trades por período
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - days);
-    
-    const filteredTrades = trades.filter(trade => {
-      const tradeDate = new Date(trade.datetime);
-      return tradeDate >= cutoffDate;
-    });
-    
-    // Agrupar por fecha primero (más reciente primero)
-    const tradesByDate = {};
-    
-    filteredTrades.forEach(trade => {
-      const dateKey = trade.datetime.split('T')[0]; // Solo la fecha
-      const symbol = trade.symbol;
-      
-      if (!tradesByDate[dateKey]) {
-        tradesByDate[dateKey] = {};
-      }
-      
-      if (!tradesByDate[dateKey][symbol]) {
-        tradesByDate[dateKey][symbol] = {
-          symbol: symbol,
-          trades: [],
-          total_qty: 0,
-          total_cost: 0,
-          total_pl: 0,
-          avg_price: 0,
-          broker: trade.broker,
-          date: dateKey
-        };
-      }
-      
-      // Agregar trade al grupo
-      tradesByDate[dateKey][symbol].trades.push(trade);
-      tradesByDate[dateKey][symbol].total_qty += trade.quantity;
-      tradesByDate[dateKey][symbol].total_cost += trade.total;
-      tradesByDate[dateKey][symbol].total_pl += (trade.pl_usd || 0);
-      
-      // Calcular promedio de precio
-      if (tradesByDate[dateKey][symbol].total_qty > 0) {
-        tradesByDate[dateKey][symbol].avg_price = tradesByDate[dateKey][symbol].total_cost / tradesByDate[dateKey][symbol].total_qty;
-      }
-    });
-    
-    // Ordenar fechas de más reciente a más antigua
-    const sortedDates = Object.keys(tradesByDate).sort().reverse();
-    
-    // Construir resultado final
-    const result = [];
-    for (const date of sortedDates) {
-      const dateData = {
-        date: date,
-        symbols: [],
-        total_trades: 0,
-        total_pl: 0,
-        is_date_group: true  // Flag para identificar grupo de fecha
-      };
-      
-      // Ordenar símbolos alfabéticamente dentro de cada fecha
-      const sortedSymbols = Object.keys(tradesByDate[date]).sort();
-      
-      for (const symbol of sortedSymbols) {
-        const symbolData = tradesByDate[date][symbol];
-        dateData.symbols.push(symbolData);
-        dateData.total_trades += symbolData.trades.length;
-        dateData.total_pl += symbolData.total_pl;
-      }
-      
-      result.push(dateData);
-    }
-    
-    return result;
-  }
-
-  // ========================================================================
-  // RENDERIZAR GRID: Top Símbolos por P&L
-  // ========================================================================
-  
-  function renderTopPLGrid(trades, broker, suffix) {
-    console.log(`🔍 renderTopPLGrid llamado para ${broker} con ${trades.length} trades`);
-    const gridDiv = document.getElementById(`grid-top-pl${suffix}`);
-    if (!gridDiv) {
-      console.warn(`⚠️ No se encontró contenedor para grid-top-pl${suffix}`);
-      return;
-    }
-    
-    // Filtrar solo trades cerrados y ordenar por fecha descendente (más nuevo primero)
-    const closedTrades = trades
-      .filter(trade => trade.is_closed)
-      .sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
-    
-    // Definir columnas completas igual que el grid principal
-    const columnDefs = [
-      // Columna de broker solo para la tab "all"
-      ...(broker === 'all' ? [{
-        field: 'broker',
-        headerName: 'Broker',
-        sortable: true,
-        filter: true,
-        width: 100,
-        cellRenderer: (params) => {
-          const brokerName = params.value?.toUpperCase() || '';
-          const isSchwab = params.value === 'schwab';
-          return `<span class="text-xs px-2 py-1 rounded ${isSchwab ? 'bg-blue-900 text-blue-300' : 'bg-orange-900 text-orange-300'}">${brokerName}</span>`;
-        }
-      }] : []),
-      {
-        field: 'datetime',
-        headerName: 'Fecha',
-        sortable: true,
-        filter: true,
-        width: 160,
-        valueFormatter: (params) => {
-          if (!params.value) return '';
-          const date = new Date(params.value);
-          const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-          const dayName = dayNames[date.getDay()];
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const hour = String(date.getHours()).padStart(2, '0');
-          const minute = String(date.getMinutes()).padStart(2, '0');
-          // Formato: Mié 11/06, 14:30
-          return `${dayName} ${month}/${day}, ${hour}:${minute}`;
-        }
-      },
-      {
-        field: 'symbol',
-        headerName: 'Símbolo',
-        sortable: true,
-        filter: true,
-        width: 110,
-        cellStyle: { fontWeight: 'bold', color: '#10b981' }
-      },
-      {
-        field: 'side',
-        headerName: 'Lado',
-        sortable: true,
-        filter: true,
-        width: 100,
-        cellRenderer: (params) => {
-          const icon = params.value === 'BUY' ? '📈' : '📉';
-          const color = params.value === 'BUY' ? 'text-green-400' : 'text-red-400';
-          return `<span class="${color}">${icon} ${params.value}</span>`;
-        }
-      },
-      {
-        field: 'quantity',
-        headerName: 'Cantidad',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 120,
-        valueFormatter: (params) => {
-          const decimals = params.data.broker === 'coinbase' ? 8 : 2;
-          return formatNumber(parseFloat(params.value || 0), decimals, false);
-        }
-      },
-      {
-        field: 'price',
-        headerName: 'Precio',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 110,
-        valueFormatter: (params) => formatUSD(parseFloat(params.value || 0), 2, false)
-      },
-      {
-        field: 'total',
-        headerName: 'Total',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 110,
-        valueGetter: (params) => parseFloat(params.data.total || params.data.amount || 0),
-        valueFormatter: (params) => formatUSD(params.value, 2, false)
-      },
-      {
-        field: 'fee',
-        headerName: 'Fee',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 90,
-        valueFormatter: (params) => formatUSD(parseFloat(params.value), 2, false)
-      },
-      {
-        field: 'pl_usd',
-        headerName: 'P&L USD',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 120,
-        cellRenderer: (params) => {
-          const value = params.value || 0;
-          const className = value >= 0 ? 'gain' : 'loss';
-          return `<span class="${className}">${formatUSD(value, 2, true)}</span>`;
-        }
-      },
-      {
-        field: 'pl_percent',
-        headerName: 'P&L %',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 110,
-        cellRenderer: (params) => {
-          const value = params.value || 0;
-          const className = value >= 0 ? 'gain' : 'loss';
-          return `<span class="${className}">${formatPercent(value, 2, true)}</span>`;
-        }
-      }
-    ];
-    
-    // Configuración del grid
-    const gridOptions = {
-      columnDefs: columnDefs,
-      rowData: closedTrades,
-      defaultColDef: {
-        resizable: true,
-        sortable: true,
-        filter: true
-      },
-      domLayout: 'normal',
-      enableCellTextSelection: true,
-      animateRows: true,
-      pagination: true,
-      paginationPageSize: 20,
-      paginationPageSizeSelector: [10, 20, 50],
-      rowSelection: 'single'
-    };
-    
-    const gridKey = `grid-top-pl-${broker}`;
-    if (gridsMap[gridKey]) {
-      gridsMap[gridKey].setGridOption('rowData', closedTrades);
-      console.log(`🔄 Grid Top PL actualizado para ${broker} con ${closedTrades.length} trades`);
-    } else {
-      gridsMap[gridKey] = agGrid.createGrid(gridDiv, gridOptions);
-      console.log(`✅ Grid Top PL inicializado para ${broker} con ${closedTrades.length} trades`);
-    }
-  }
-
-  // ========================================================================
-  // RENDERIZAR GRID: Top Símbolos por Operaciones
-  // ========================================================================
-  
-  function renderTopOpsGrid(trades, broker, suffix) {
-    console.log(`🔍 renderTopOpsGrid llamado para ${broker} con ${trades.length} trades`);
-    const gridDiv = document.getElementById(`grid-top-ops${suffix}`);
-    if (!gridDiv) {
-      console.warn(`⚠️ No se encontró contenedor para grid-top-ops${suffix}`);
-      return;
-    }
-    
-    // Ordenar trades por fecha descendente (más nuevo primero)
-    const sortedTrades = trades
-      .sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
-    
-    // Calcular cantidad de trades por símbolo para mostrar en cada fila
-    const tradesCountBySymbol = {};
-    trades.forEach(trade => {
-      tradesCountBySymbol[trade.symbol] = (tradesCountBySymbol[trade.symbol] || 0) + 1;
-    });
-    
-    // Agregar la información del conteo a cada trade
-    const tradesWithCount = sortedTrades.map(trade => ({
-      ...trade,
-      symbol_trade_count: tradesCountBySymbol[trade.symbol] || 0
-    }));
-    
-    // Definir columnas completas igual que el grid principal
-    const columnDefs = [
-      // Columna de broker solo para la tab "all"
-      ...(broker === 'all' ? [{
-        field: 'broker',
-        headerName: 'Broker',
-        sortable: true,
-        filter: true,
-        width: 100,
-        cellRenderer: (params) => {
-          const brokerName = params.value?.toUpperCase() || '';
-          const isSchwab = params.value === 'schwab';
-          return `<span class="text-xs px-2 py-1 rounded ${isSchwab ? 'bg-blue-900 text-blue-300' : 'bg-orange-900 text-orange-300'}">${brokerName}</span>`;
-        }
-      }] : []),
-      {
-        field: 'datetime',
-        headerName: 'Fecha',
-        sortable: true,
-        filter: true,
-        width: 160,
-        valueFormatter: (params) => {
-          if (!params.value) return '';
-          const date = new Date(params.value);
-          const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-          const dayName = dayNames[date.getDay()];
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const hour = String(date.getHours()).padStart(2, '0');
-          const minute = String(date.getMinutes()).padStart(2, '0');
-          // Formato: Mié 11/06, 14:30
-          return `${dayName} ${month}/${day}, ${hour}:${minute}`;
-        }
-      },
-      {
-        field: 'symbol',
-        headerName: 'Símbolo',
-        sortable: true,
-        filter: true,
-        width: 110,
-        cellStyle: { fontWeight: 'bold', color: '#10b981' }
-      },
-      {
-        field: 'side',
-        headerName: 'Lado',
-        sortable: true,
-        filter: true,
-        width: 100,
-        cellRenderer: (params) => {
-          const icon = params.value === 'BUY' ? '📈' : '📉';
-          const color = params.value === 'BUY' ? 'text-green-400' : 'text-red-400';
-          return `<span class="${color}">${icon} ${params.value}</span>`;
-        }
-      },
-      {
-        field: 'quantity',
-        headerName: 'Cantidad',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 120,
-        valueFormatter: (params) => {
-          const decimals = params.data.broker === 'coinbase' ? 8 : 2;
-          return formatNumber(parseFloat(params.value || 0), decimals, false);
-        }
-      },
-      {
-        field: 'price',
-        headerName: 'Precio',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 110,
-        valueFormatter: (params) => formatUSD(parseFloat(params.value || 0), 2, false)
-      },
-      {
-        field: 'total',
-        headerName: 'Total',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 110,
-        valueGetter: (params) => parseFloat(params.data.total || params.data.amount || 0),
-        valueFormatter: (params) => formatUSD(params.value, 2, false)
-      },
-      {
-        field: 'fee',
-        headerName: 'Fee',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 90,
-        valueFormatter: (params) => formatUSD(parseFloat(params.value), 2, false)
-      },
-      {
-        field: 'pl_usd',
-        headerName: 'P&L USD',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 120,
-        cellRenderer: (params) => {
-          const value = params.value || 0;
-          const className = value >= 0 ? 'gain' : 'loss';
-          return `<span class="${className}">${formatUSD(value, 2, true)}</span>`;
-        }
-      },
-      {
-        field: 'pl_percent',
-        headerName: 'P&L %',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 110,
-        cellRenderer: (params) => {
-          const value = params.value || 0;
-          const className = value >= 0 ? 'gain' : 'loss';
-          return `<span class="${className}">${formatPercent(value, 2, true)}</span>`;
-        }
-      },
-      {
-        field: 'symbol_trade_count',
-        headerName: '# Trades Símbolo',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 130,
-        cellStyle: { fontWeight: 'bold', color: '#3b82f6' },
-        valueFormatter: (params) => {
-          const count = params.value || 0;
-          return `${count} ops`;
-        }
-      }
-    ];
-    
-    // Configuración del grid
-    const gridOptions = {
-      columnDefs: columnDefs,
-      rowData: sortedTrades,
-      defaultColDef: {
-        resizable: true,
-        sortable: true,
-        filter: true
-      },
-      domLayout: 'normal',
-      enableCellTextSelection: true,
-      animateRows: true,
-      pagination: true,
-      paginationPageSize: 20,
-      paginationPageSizeSelector: [10, 20, 50],
-      rowSelection: 'single'
-    };
-    
-    const gridKey = `grid-top-ops-${broker}`;
-    if (gridsMap[gridKey]) {
-      gridsMap[gridKey].setGridOption('rowData', sortedTrades);
-      console.log(`🔄 Grid Top Ops actualizado para ${broker} con ${sortedTrades.length} trades`);
-    } else {
-      gridsMap[gridKey] = agGrid.createGrid(gridDiv, gridOptions);
-      console.log(`✅ Grid Top Ops inicializado para ${broker} con ${sortedTrades.length} trades`);
-    }
-  }
-
-  // ========================================================================
-  // RENDERIZAR GRID: Historial Agrupado por Fecha
-  // ========================================================================
-  
-  function renderDatesGrid(trades, broker, suffix) {
-    console.log(`🔍 renderDatesGrid llamado para ${broker} con ${trades.length} trades`);
-    const gridDiv = document.getElementById(`grid-dates${suffix}`);
-    if (!gridDiv) {
-      console.warn(`⚠️ No se encontró contenedor para grid-dates${suffix}`);
-      return;
-    }
-    
-    // Ordenar trades por fecha descendente (más nuevo primero)
-    const sortedTrades = trades
-      .sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
-    
-    // Definir columnas completas igual que el grid principal
-    const columnDefs = [
-      // Columna de broker solo para la tab "all"
-      ...(broker === 'all' ? [{
-        field: 'broker',
-        headerName: 'Broker',
-        sortable: true,
-        filter: true,
-        width: 100,
-        cellRenderer: (params) => {
-          const brokerName = params.value?.toUpperCase() || '';
-          const isSchwab = params.value === 'schwab';
-          return `<span class="text-xs px-2 py-1 rounded ${isSchwab ? 'bg-blue-900 text-blue-300' : 'bg-orange-900 text-orange-300'}">${brokerName}</span>`;
-        }
-      }] : []),
-      {
-        field: 'datetime',
-        headerName: 'Fecha',
-        sortable: true,
-        filter: true,
-        width: 160,
-        valueFormatter: (params) => {
-          if (!params.value) return '';
-          const date = new Date(params.value);
-          const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-          const dayName = dayNames[date.getDay()];
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const hour = String(date.getHours()).padStart(2, '0');
-          const minute = String(date.getMinutes()).padStart(2, '0');
-          // Formato: Mié 11/06, 14:30
-          return `${dayName} ${month}/${day}, ${hour}:${minute}`;
-        }
-      },
-      {
-        field: 'symbol',
-        headerName: 'Símbolo',
-        sortable: true,
-        filter: true,
-        width: 110,
-        cellStyle: { fontWeight: 'bold', color: '#10b981' }
-      },
-      {
-        field: 'side',
-        headerName: 'Lado',
-        sortable: true,
-        filter: true,
-        width: 100,
-        cellRenderer: (params) => {
-          const icon = params.value === 'BUY' ? '📈' : '📉';
-          const color = params.value === 'BUY' ? 'text-green-400' : 'text-red-400';
-          return `<span class="${color}">${icon} ${params.value}</span>`;
-        }
-      },
-      {
-        field: 'quantity',
-        headerName: 'Cantidad',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 120,
-        valueFormatter: (params) => {
-          const decimals = params.data.broker === 'coinbase' ? 8 : 2;
-          return formatNumber(parseFloat(params.value || 0), decimals, false);
-        }
-      },
-      {
-        field: 'price',
-        headerName: 'Precio',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 110,
-        valueFormatter: (params) => formatUSD(parseFloat(params.value || 0), 2, false)
-      },
-      {
-        field: 'total',
-        headerName: 'Total',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 110,
-        valueGetter: (params) => parseFloat(params.data.total || params.data.amount || 0),
-        valueFormatter: (params) => formatUSD(params.value, 2, false)
-      },
-      {
-        field: 'fee',
-        headerName: 'Fee',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 90,
-        valueFormatter: (params) => formatUSD(parseFloat(params.value), 2, false)
-      },
-      {
-        field: 'pl_usd',
-        headerName: 'P&L USD',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 120,
-        cellRenderer: (params) => {
-          const value = params.value || 0;
-          const className = value >= 0 ? 'gain' : 'loss';
-          return `<span class="${className}">${formatUSD(value, 2, true)}</span>`;
-        }
-      },
-      {
-        field: 'pl_percent',
-        headerName: 'P&L %',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 110,
-        cellRenderer: (params) => {
-          const value = params.value || 0;
-          const className = value >= 0 ? 'gain' : 'loss';
-          return `<span class="${className}">${formatPercent(value, 2, true)}</span>`;
-        }
-      }
-    ];
-    
-    // Configuración del grid
-    const gridOptions = {
-      columnDefs: columnDefs,
-      rowData: sortedTrades,
-      defaultColDef: {
-        resizable: true,
-        sortable: true,
-        filter: true
-      },
-      domLayout: 'normal',
-      enableCellTextSelection: true,
-      animateRows: true,
-      pagination: true,
-      paginationPageSize: 20,
-      paginationPageSizeSelector: [10, 20, 50],
-      rowSelection: 'single'
-    };
-    
-    const gridKey = `grid-dates-${broker}`;
-    if (gridsMap[gridKey]) {
-      gridsMap[gridKey].setGridOption('rowData', sortedTrades);
-      console.log(`🔄 Grid Dates actualizado para ${broker} con ${sortedTrades.length} trades`);
-    } else {
-      gridsMap[gridKey] = agGrid.createGrid(gridDiv, gridOptions);
-      console.log(`✅ Grid Dates inicializado para ${broker} con ${sortedTrades.length} trades`);
-    }
-  }
-
-  // ========================================================================
-  // RENDERIZAR GRID: Historial Agrupado por Símbolo
-  // ========================================================================
-  
-  function renderSymbolsGrid(trades, broker, suffix) {
-    console.log(`🔍 renderSymbolsGrid llamado para ${broker} con ${trades.length} trades`);
-    const gridDiv = document.getElementById(`grid-symbols${suffix}`);
-    if (!gridDiv) {
-      console.warn(`⚠️ No se encontró contenedor para grid-symbols${suffix}`);
-      return;
-    }
-    
-    // Ordenar trades por fecha descendente (más nuevo primero)
-    const sortedTrades = trades
-      .sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
-    
-    // Calcular cantidad de trades por símbolo para mostrar en cada fila
-    const tradesCountBySymbol = {};
-    trades.forEach(trade => {
-      tradesCountBySymbol[trade.symbol] = (tradesCountBySymbol[trade.symbol] || 0) + 1;
-    });
-    
-    // Agregar la información del conteo a cada trade
-    const tradesWithCount = sortedTrades.map(trade => ({
-      ...trade,
-      symbol_trade_count: tradesCountBySymbol[trade.symbol] || 0
-    }));
-    
-    // Definir columnas completas igual que el grid principal
-    const columnDefs = [
-      // Columna de broker solo para la tab "all"
-      ...(broker === 'all' ? [{
-        field: 'broker',
-        headerName: 'Broker',
-        sortable: true,
-        filter: true,
-        width: 100,
-        cellRenderer: (params) => {
-          const brokerName = params.value?.toUpperCase() || '';
-          const isSchwab = params.value === 'schwab';
-          return `<span class="text-xs px-2 py-1 rounded ${isSchwab ? 'bg-blue-900 text-blue-300' : 'bg-orange-900 text-orange-300'}">${brokerName}</span>`;
-        }
-      }] : []),
-      {
-        field: 'datetime',
-        headerName: 'Fecha',
-        sortable: true,
-        filter: true,
-        width: 160,
-        valueFormatter: (params) => {
-          if (!params.value) return '';
-          const date = new Date(params.value);
-          const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-          const dayName = dayNames[date.getDay()];
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const hour = String(date.getHours()).padStart(2, '0');
-          const minute = String(date.getMinutes()).padStart(2, '0');
-          // Formato: Mié 11/06, 14:30
-          return `${dayName} ${month}/${day}, ${hour}:${minute}`;
-        }
-      },
-      {
-        field: 'symbol',
-        headerName: 'Símbolo',
-        sortable: true,
-        filter: true,
-        width: 110,
-        cellStyle: { fontWeight: 'bold', color: '#10b981' }
-      },
-      {
-        field: 'symbol_trade_count',
-        headerName: '# Trades Símbolo',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 130,
-        cellStyle: { fontWeight: 'bold', color: '#3b82f6' },
-        valueFormatter: (params) => {
-          const count = params.value || 0;
-          return `${count} ops`;
-        }
-      },
-      {
-        field: 'side',
-        headerName: 'Lado',
-        sortable: true,
-        filter: true,
-        width: 100,
-        cellRenderer: (params) => {
-          const icon = params.value === 'BUY' ? '📈' : '📉';
-          const color = params.value === 'BUY' ? 'text-green-400' : 'text-red-400';
-          return `<span class="${color}">${icon} ${params.value}</span>`;
-        }
-      },
-      {
-        field: 'quantity',
-        headerName: 'Cantidad',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 120,
-        valueFormatter: (params) => {
-          const decimals = params.data.broker === 'coinbase' ? 8 : 2;
-          return formatNumber(parseFloat(params.value || 0), decimals, false);
-        }
-      },
-      {
-        field: 'price',
-        headerName: 'Precio',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 110,
-        valueFormatter: (params) => formatUSD(parseFloat(params.value || 0), 2, false)
-      },
-      {
-        field: 'total',
-        headerName: 'Total',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 110,
-        valueGetter: (params) => parseFloat(params.data.total || params.data.amount || 0),
-        valueFormatter: (params) => formatUSD(params.value, 2, false)
-      },
-      {
-        field: 'fee',
-        headerName: 'Fee',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 90,
-        valueFormatter: (params) => formatUSD(parseFloat(params.value), 2, false)
-      },
-      {
-        field: 'pl_usd',
-        headerName: 'P&L USD',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 120,
-        cellRenderer: (params) => {
-          const value = params.value || 0;
-          const className = value >= 0 ? 'gain' : 'loss';
-          return `<span class="${className}">${formatUSD(value, 2, true)}</span>`;
-        }
-      },
-      {
-        field: 'pl_percent',
-        headerName: 'P&L %',
-        sortable: true,
-        filter: true,
-        type: 'numericColumn',
-        width: 110,
-        cellRenderer: (params) => {
-          const value = params.value || 0;
-          const className = value >= 0 ? 'gain' : 'loss';
-          return `<span class="${className}">${formatPercent(value, 2, true)}</span>`;
-        }
-      }
-    ];
-    
-    // Configuración del grid
-    const gridOptions = {
-      columnDefs: columnDefs,
-      rowData: sortedTrades,
-      defaultColDef: {
-        resizable: true,
-        sortable: true,
-        filter: true
-      },
-      domLayout: 'normal',
-      enableCellTextSelection: true,
-      animateRows: true,
-      pagination: true,
-      paginationPageSize: 20,
-      paginationPageSizeSelector: [10, 20, 50],
-      rowSelection: 'single'
-    };
-    
-    const gridKey = `grid-symbols-${broker}`;
-    if (gridsMap[gridKey]) {
-      gridsMap[gridKey].setGridOption('rowData', tradesWithCount);
-      console.log(`� Grid Symbols actualizado para ${broker} con ${tradesWithCount.length} trades`);
-    } else {
-      gridsMap[gridKey] = agGrid.createGrid(gridDiv, gridOptions);
-      console.log(`✅ Grid Symbols inicializado para ${broker} con ${tradesWithCount.length} trades`);
-    }
-  }
-
-  // ========================================================================
-  // FILTRAR GRID AGRUPADO POR SÍMBOLO
-  // ========================================================================
-  
-  function filterGroupedGridBySymbol(symbol, broker, suffix) {
-    console.log(`🔍 Filtrando grid agrupado por símbolo: ${symbol}`);
-    // Esta función se puede implementar para filtrar el grid agrupado
-    // Por ahora solo mostramos un mensaje
-    alert(`Filtrando por símbolo: ${symbol}\n(Implementación pendiente)`);
   }
 
   /**
@@ -3431,22 +2776,104 @@
     
     // Conectar WebSocket
     connectWebSocket();
-  });
+    
+    // ========================================================================
+  // FUNCIÓN MAESTRA: Agrupamiento Doble - Fecha + Símbolo
+  // ========================================================================
+  
+  function groupTradesByDateAndSymbol(trades, days = 30) {
+    if (!trades || trades.length === 0) return [];
+    
+    // Filtrar trades por período
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    
+    const filteredTrades = trades.filter(trade => {
+      const tradeDate = new Date(trade.datetime);
+      return tradeDate >= cutoffDate;
+    });
+    
+    // Agrupar por fecha primero (más reciente primero)
+    const tradesByDate = {};
+    
+    filteredTrades.forEach(trade => {
+      const dateKey = trade.datetime.split('T')[0]; // Solo la fecha
+      const symbol = trade['symbol'];
+      
+      if (!tradesByDate[dateKey]) {
+        tradesByDate[dateKey] = {};
+      }
+      
+      if (!tradesByDate[dateKey][symbol]) {
+        tradesByDate[dateKey][symbol] = {
+          'symbol': symbol,
+          'trades': [],
+          'total_qty': 0,
+          'total_cost': 0,
+          'total_pl': 0,
+          'avg_price': 0,
+          'broker': trade['broker'],
+          'date': dateKey
+        };
+      }
+      
+      // Agregar trade al grupo
+      tradesByDate[dateKey][symbol]['trades'].push(trade);
+      tradesByDate[dateKey][symbol]['total_qty'] += trade['quantity'];
+      tradesByDate[dateKey][symbol]['total_cost'] += trade['total'];
+      tradesByDate[dateKey][symbol]['total_pl'] += trade.get('pl_usd', 0);
+      
+      // Calcular promedio de precio
+      if (tradesByDate[dateKey][symbol]['total_qty'] > 0) {
+        tradesByDate[dateKey][symbol]['avg_price'] = tradesByDate[dateKey][symbol]['total_cost'] / tradesByDate[dateKey][symbol]['total_qty'];
+      }
+    });
+    
+    // Ordenar fechas de más reciente a más antigua
+    const sortedDates = Object.keys(tradesByDate).sort().reverse();
+    
+    // Construir resultado final
+    const result = [];
+    for (const date of sortedDates) {
+      const dateData = {
+        'date': date,
+        'symbols': [],
+        'total_trades': 0,
+        'total_pl': 0,
+        'is_date_group': true  // Flag para identificar grupo de fecha
+      };
+      
+      // Ordenar símbolos alfabéticamente dentro de cada fecha
+      const sortedSymbols = Object.keys(tradesByDate[date]).sort();
+      
+      for (const symbol of sortedSymbols) {
+        const symbolData = tradesByDate[date][symbol];
+        dateData['symbols'].push(symbolData);
+        dateData['total_trades'] += len(symbolData['trades']);
+        dateData['total_pl'] += symbolData['total_pl'];
+      }
+      
+      result.append(dateData);
+    }
+    
+    return result;
+  }
 
   // ========================================================================
   // Configurar event listeners del modal (después de que el DOM esté listo)
-  // Cerrar con ESC
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeAgGridModal();
-  });
-
-  // Cerrar al hacer click fuera
-  const modal = document.getElementById('ag-grid-modal');
-  if (modal) {
-    modal.addEventListener('click', (e) => {
-      if (e.target.id === 'ag-grid-modal') closeAgGridModal();
+    // Cerrar con ESC
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeAgGridModal();
     });
-  }
+
+    // Cerrar al hacer click fuera
+    const modal = document.getElementById('ag-grid-modal');
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target.id === 'ag-grid-modal') closeAgGridModal();
+      });
+    }
+  });
 </script>
 
 <!-- Modal Ag-Grid -->
